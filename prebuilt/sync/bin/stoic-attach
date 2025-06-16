@@ -1,16 +1,45 @@
 #!/system/bin/sh
-set -eu
+set -eux
 
 script_dir="$(realpath "$(dirname "$(readlink -f "$0")")")"
 stoic_device_sync_dir="$(realpath "$script_dir/..")"
 cd "$script_dir"
 
 run_as_compat() {
-  "$script_dir/run-as-compat" "$@"
+  case "$attach_option" in
+    jvmti)
+      run-as "$@"
+      ;;
+    jvmti_root)
+      "$script_dir/su-run-as" "$@"
+      ;;
+    sdk)
+      run-as "$@"
+      ;;
+    *)
+      >&2 echo "Invalid attach option '$attach_option'"
+      exit 1
+      ;;
+  esac
+}
+
+attach_agent_compat() {
+  case "$attach_option" in
+    jvmti)
+      am attach-agent "$@"
+      ;;
+    jvmti_root)
+      su 0 am attach-agent "$@"
+      ;;
+    *)
+      >&2 echo "Invalid attach option '$attach_option'"
+      exit 1
+      ;;
+  esac
 }
 
 monkey_package() {
-  monkey --pct-syskeys 0 -p "$pkg" 1 >/dev/null 2>&1
+  monkey --pct-syskeys 0 -p "$pkg" 1 >/dev/null || true 2>&1
 }
 
 start_package() {
@@ -57,20 +86,134 @@ cross_uid_cp() {
   cat "$src" | run_as_compat "$pkg" sh -c "cat > $dst && chmod $perms $dst"
 }
 
+target_process_exited=0
 wait_for_server_up_pid=""
 logcat_pid=""
-cleanup() {
+cleanup_attach() {
   if [ -n "${wait_for_server_up_pid:-}" ]; then
-    # Killing the server_up_pid doesn't actually unblock anything - we'd need
-    # to kill the pid inside that's actually opening the fio. Instead, we just
-    # write to the fifo to cause it to exit
+    # server_up_pid is the process running timeout - killing that doesn't
+    # actually unblock anything - we'd need to kill the pid inside (the one
+    # that's running sh). Instead, we just write to the fifo to cause it to
+    # exit
     run_as_compat "$pkg" timeout 1s sh -c ": > $pkg_stoic_dir/server-up.fifo"
   fi
   if [ -n "${logcat_pid:-}" ]; then
+    if [ "$target_process_exited" = "1" ]; then
+      # We want to make sure we print all the information we need to debug why
+      # the target process exited, so we give the logcat process a chance to
+      # finish piping everything before we kill it
+      sleep 1
+    fi
+
     kill "$logcat_pid" || true
   fi
 }
-trap cleanup EXIT
+
+attach_jvmti() {
+  trap cleanup_attach EXIT
+
+  pkg_dir="$(run_as_compat "$pkg" printenv HOME)"
+  pkg_stoic_dir="$pkg_dir/stoic"
+  pkg_so="$pkg_stoic_dir/stoic-jvmti-agent.so"
+  pkg_server_dex_jar="$pkg_stoic_dir/stoic-server-attached.dex.jar"
+  pkg_options_json="$pkg_stoic_dir/options.json"
+
+  # TODO: Use a lock to ensure that multiple processes aren't attempting to bring
+  # the server up simultaneously
+
+  >&2 echo "cleaning $pkg_stoic_dir"
+  run_as_compat "$pkg" rm -rf "$pkg_stoic_dir"
+  run_as_compat "$pkg" mkdir "$pkg_stoic_dir"
+  cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-jvmti-agent.so" "$pkg_so"
+  cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-server-attached.dex.jar" "$pkg_server_dex_jar"
+  echo "{\"stoicProtocolVersion\":$stoic_protocol_version}" | cross_uid_cp 444 - "$pkg_options_json"
+
+  run_as_compat "$pkg" mkfifo "$pkg_stoic_dir/server-up.fifo"
+
+  if [ "$attach_option" = "jvmti_root" ]; then
+    # Need to fix up SELinux permissions (multi-level security category).
+    # Otherwise the app won't be able to write to the fifo.
+    full_mls_category_set="$(su 0 ls -Zd "$pkg_dir" | awk '{print $1}')"
+    su 0 chcon "$full_mls_category_set" "$pkg_stoic_dir/server-up.fifo"
+  fi
+
+  run_as_compat "$pkg" timeout 20s sh -c ": < $pkg_stoic_dir/server-up.fifo" &
+  wait_for_server_up_pid=$!
+
+  >&2 echo "wait_for_server_up started in background with PID $wait_for_server_up_pid"
+
+  first_pid="$(pidof "$pkg" || true)"
+
+  # Sets pkg_pid and restarts pkg if needed
+  resolve_package_pid "$pkg"
+
+  if [ "$pkg_pid" = "$first_pid" ]; then
+    # Since pkg was already running, double-check /proc/pid/maps for stoic-jvmti-agent.so
+    if run_as_compat "$pkg" cat /proc/$pkg_pid/maps | grep "stoic-jvmti-agent.so"; then
+      >&2 echo "stoic already loaded - need to restart the process first"
+      >&2 echo "consider:"
+      >&2 echo "  stoic --restart ..."
+      exit 1
+    fi
+  fi
+
+  logcat -T 1 --pid "$pkg_pid" "stoic:v *:w" >&2 &
+  logcat_pid=$!
+
+  # Sometimes attach-agent complains that the process doesn't exist - maybe
+  # because it was created to recently? Sleeping fixes it.
+  attach_agent_compat "$pkg" "$pkg_so=$pkg_stoic_dir" || attach_agent_exit_code=$?
+  if [ "${attach_agent_exit_code:-0}" -ne 0 ]; then
+    >&2 echo "attach-agent exited with code=$attach_agent_exit_code"
+    >&2 echo "Attach agent failed... sleeping 1 second and retrying..."
+    sleep 1
+    attach_agent_compat "$pkg" "$pkg_so=$pkg_stoic_dir"
+  fi
+
+  # We need to wait for one of the two to exit, so we poll in a loop
+  >&2 echo "Waiting for wait_for_server_up/target_process to finish..."
+  while :; do
+    if ! kill -0 "$wait_for_server_up_pid" 2>/dev/null; then
+      wait_for_server_up_exit_status=0
+      wait $wait_for_server_up_pid || wait_for_server_up_exit_status=$?
+      >&2 echo "wait_for_server_up exited with $wait_for_server_up_exit_status"
+      wait_for_server_up_pid=""
+      exit $wait_for_server_up_exit_status
+    fi
+
+    # We cannot use `kill -0` on app pids without root, so we use ps to check
+    # if the process has exited instead
+    # (TODO: in rare cases this seems to be slow at detecting the process has
+    # exited - it might be helpful to check the status to see if its a zombie)
+    if ! ps -p "$pkg_pid" -o NAME= 2>/dev/null | grep -q "$pkg"; then
+      target_process_exited=1
+      >&2 echo "Target process ($pkg_pid) exited"
+      exit 1
+    fi
+
+    >&2 echo "both processes still alive, sleeping 0.1s"
+
+    sleep 0.1
+  done
+}
+
+attach_sdk() {
+  # TODO: query receivers to verify there is one
+
+
+  # If the app was just installed or manually stopped via 'am force-stop' then
+  # we'll need to unstop it in order for the broadcast to work.
+  pm unstop "$pkg"
+
+  first_pid="$(pidof "$pkg" || true)"
+
+  # Sets pkg_pid and restarts pkg if needed
+  resolve_package_pid "$pkg"
+
+  am broadcast -a com.squareup.stoic.android.sdk.ACTION_UDS_LISTEN -p "$pkg"
+
+  # TODO: wait for confirmation the socket is up
+}
 
 # The protocol version the server should expect
 stoic_protocol_version="$1"
@@ -78,90 +221,45 @@ stoic_protocol_version="$1"
 # The package we'll attach to
 pkg="$2"
 
-# Should be one of restart/start_if_needed/do_not_start
+# One of restart/start_if_needed/do_not_start
 start_option="$3"
 
+# TODO: no longer used
 debug_option="$4"
-case "$debug_option" in
-  debug_true)
-    debug="on"
+
+# One of jvmti/jvmti_root/sdk
+attach_option="$5"
+
+if ! pm list packages "$pkg" | grep -x "package:$pkg"; then
+  # If a demo app is specified then we'll automatically install it
+  case "$pkg" in
+    com.squareup.stoic.demoapp.withoutsdk)
+      pm install "$stoic_device_sync_dir/apk/stoic-demo-app-without-sdk-debug.apk"
+      ;;
+    com.squareup.stoic.demoapp.withsdk)
+      pm install "$stoic_device_sync_dir/apk/stoic-demo-app-with-sdk-release.apk"
+      ;;
+    *)
+      >&2 echo "$pkg not found"
+      exit 1
+      ;;
+  esac
+fi
+
+case "$attach_option" in
+  jvmti)
+    attach_jvmti
     ;;
-  debug_false)
-    debug=""
+  jvmti_root)
+    # Exactly the same as jvmti, except that run-as-compat uses su-run-as
+    # instead of run-as.
+    attach_jvmti
+    ;;
+  sdk)
+    attach_sdk
     ;;
   *)
-    >&2 echo "Invalid debug option '$debug_option'"
+    >&2 echo "Invalid attach option '$attach_option'"
     exit 1
     ;;
 esac
-
-if [ -n "$debug" ]; then
-  set -x
-fi
-
-if ! pkg_dir="$(run_as_compat "$pkg" printenv HOME)"; then
-  if [ "$pkg" = "com.squareup.stoic.demoapp.withoutsdk" ]; then
-    # Install and retry
-    pm install "$stoic_device_sync_dir/apk/stoic-demo-app-without-sdk-debug.apk"
-    pkg_dir="$(run_as_compat "$pkg" printenv HOME)"
-  else
-    >&2 echo "$pkg not found"
-    exit 1
-  fi
-fi
-
-pkg_stoic_dir="$pkg_dir/stoic"
-pkg_so="$pkg_stoic_dir/stoic-jvmti-agent.so"
-pkg_server_dex_jar="$pkg_stoic_dir/stoic-server-attached.dex.jar"
-pkg_options_json="$pkg_stoic_dir/options.json"
-
-# TODO: Use a lock to ensure that multiple processes aren't attempting to bring
-# the server up simultaneously
-
->&2 echo "cleaning $pkg_stoic_dir"
-run_as_compat "$pkg" rm -rf "$pkg_stoic_dir"
-run_as_compat "$pkg" mkdir "$pkg_stoic_dir"
-cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-jvmti-agent.so" "$pkg_so"
-cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-server-attached.dex.jar" "$pkg_server_dex_jar"
-echo "{\"stoicProtocolVersion\":$stoic_protocol_version}" | cross_uid_cp 444 - "$pkg_options_json"
-
-run_as_compat "$pkg" mkfifo "$pkg_stoic_dir/server-up.fifo"
-run_as_compat "$pkg" timeout 20s sh -c ": < $pkg_stoic_dir/server-up.fifo" &
-wait_for_server_up_pid=$!
-
->&2 echo "wait_for_server_up started in background with PID $wait_for_server_up_pid"
-
-first_pid="$(pidof "$pkg" || true)"
-
-# Sets pkg_pid
-resolve_package_pid "$pkg"
-
-if [ "$pkg_pid" = "$first_pid" ]; then
-  # Since pkg was already running, double-check /proc/pid/maps for stoic-jvmti-agent.so
-  if run_as_compat "$pkg" cat /proc/$pkg_pid/maps | grep "stoic-jvmti-agent.so"; then
-    >&2 echo "stoic already loaded - need to restart the process first"
-    >&2 echo "consider:"
-    >&2 echo "  stoic --restart ..."
-    exit 1
-  fi
-fi
-
-# TODO: output to temporary file
-logcat -T 1 --pid "$pkg_pid" "stoic:v *:w" >&2 &
-logcat_pid=$!
-
-# Sometimes attach-agent complains that the process doesn't exist - maybe
-# because it was created to recently? Sleeping fixes it.
-am attach-agent "$pkg" "$pkg_so=$pkg_stoic_dir" || attach_agent_exit_code=$?
-if [ "${attach_agent_exit_code:-0}" -ne 0 ]; then
-  >&2 echo "attach-agent exited with code=$attach_agent_exit_code"
-  >&2 echo "Attach agent failed... sleeping 1 second and retrying..."
-  sleep 1
-  am attach-agent "$pkg" "$pkg_so=$pkg_stoic_dir"
-fi
-
->&2 echo "Waiting for wait_for_server_up to finish..."
-wait_for_server_up_exit_status=0
-wait $wait_for_server_up_pid || wait_for_server_up_exit_status=$?
->&2 echo "wait_for_server_up exited with $wait_for_server_up_exit_status"
-wait_for_server_up_pid=""

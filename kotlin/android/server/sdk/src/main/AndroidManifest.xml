@@ -1,13 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:tools="http://schemas.android.com/tools"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.squareup.stoic.android.sdk">
+
   <application>
-    <provider
-        android:name=".StoicContentProvider"
-        android:authorities="${applicationId}.stoic"
+    <receiver
+        android:name=".StoicBroadcastReceiver"
         android:exported="true"
-        android:grantUriPermissions="true"
-        android:enabled="true"
-        tools:ignore="ExportedContentProvider" />
+        android:enabled="true">
+      <intent-filter>
+        <action android:name="com.squareup.stoic.android.sdk.ACTION_UDS_LISTEN" />
+      </intent-filter>
+    </receiver>
   </application>
 </manifest>

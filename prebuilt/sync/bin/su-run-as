@@ -1,17 +1,9 @@
 #!/system/bin/sh
 
-# This is a script that we run on Android to address a shortcoming in run-as -
-# it doesn't work for non-debuggable packages even when you are root
-# This version works for any package when root is available
+# Like run-as, but uses su so that it works even for non-debuggable packages
 
 pkg="$1"
 shift
-
-# If run-as works with this package, just use that.
-if run-as "$pkg" true 2>/dev/null; then
-    run-as "$pkg" "$@"
-    exit $?
-fi
 
 if [ -z "$(which su)" ]; then
     exit 1

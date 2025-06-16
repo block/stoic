@@ -149,6 +149,15 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
     openRequestIds.add(STDERR)
   }
 
+  /**
+   * Write a request packet.
+   *
+   * @param request the request content
+   * @param requestId a unique ID identifying the request (or -1 to request an ID to be allocated)
+   * @param isComplete false if additional request packets will be sent for the same request ID
+   *
+   * @return the request ID
+   */
   @Synchronized
   fun writeRequest(request: Any, requestId: Int = -1, isComplete: Boolean = true): Int {
     val resolvedRequestId = if (requestId == -1) { allocateRequestId() } else { requestId }
@@ -159,6 +168,13 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
     return resolvedRequestId
   }
 
+  /**
+   * Write a response packet to a previous request
+   *
+   * @param requestId the ID identifying the request to which this response corresponds
+   * @param response the response content
+   * @param isComplete false if additional response packets will be sent for the same request ID
+   */
   @Synchronized
   fun writeResponse(requestId: Int, response: Any, isComplete: Boolean = true) {
     val completeFlag = if (isComplete) { MessageFlags.COMPLETE.code } else { 0 }
@@ -167,11 +183,20 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
     writeMessageLocked(flags, requestId, response)
   }
 
+  /**
+   * Write an independent message packet (neither a request expecting a response nor a response to a
+   * previous request)
+   *
+   * @param oneWay the message content
+   * @param requestId the ID identifying the message (in case the message involves multiple packets)
+   * @param isComplete false if additional packets will be sent for the same request ID
+   */
   @Synchronized
   fun writeOneWay(oneWay: Any, requestId: Int = -1, isComplete: Boolean = true) {
+    val resolvedRequestId = if (requestId == -1) { allocateRequestId() } else { requestId }
     val completeFlag = if (isComplete) { MessageFlags.COMPLETE.code } else { 0 }
-    logVerbose { "writing one-way: $oneWay, requestId=$requestId, flags=$completeFlag" }
-    writeMessageLocked(completeFlag, requestId, oneWay)
+    logVerbose { "writing one-way: $oneWay, requestId=$resolvedRequestId, flags=$completeFlag" }
+    writeMessageLocked(completeFlag, resolvedRequestId, oneWay)
   }
 
   fun writeMessageLocked(flags: Int, requestId: Int, msg: Any) {

@@ -15,7 +15,7 @@
   </style>
 
   <style name="ThemeOverlay.Stoic.FullscreenContainer" parent="">
-    <item name="fullscreenBackgroundColor">@color/light_blue_600</item>
-    <item name="fullscreenTextColor">@color/light_blue_A200</item>
+    <item name="fullscreenBackgroundColor">@color/light_green_600</item>
+    <item name="fullscreenTextColor">@color/light_green_A200</item>
   </style>
 </resources>

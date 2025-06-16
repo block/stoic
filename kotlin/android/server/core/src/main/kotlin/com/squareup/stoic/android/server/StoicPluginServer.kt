@@ -34,7 +34,7 @@ import java.lang.reflect.InvocationTargetException
 import kotlin.Exception
 import kotlin.concurrent.thread
 
-class StoicPlugin(
+class StoicPluginServer(
   private val stoicDir: String,
   extraPlugins: Map<String, StoicNamedPlugin>,
   private val socketInputStream: InputStream,
@@ -42,7 +42,6 @@ class StoicPlugin(
 ) {
   private val writer = MessageWriter(DataOutputStream(socketOutputStream))
   private val reader = MessageReader(DataInputStream(socketInputStream))
-  private var nextMessage: Any? = null
   private val builtinPlugins: Map<String, StoicNamedPlugin>
 
   init {
@@ -135,7 +134,7 @@ class StoicPlugin(
     val oldClassLoader = Thread.currentThread().contextClassLoader
     try {
       val plugin = if (startPlugin.pluginSha != null) {
-        val parentClassLoader = StoicPlugin::class.java.classLoader
+        val parentClassLoader = StoicPluginServer::class.java.classLoader
         val pluginDir = "$stoicDir/plugin-by-sha/${startPlugin.pluginSha}"
         val pluginJar = File("$pluginDir/${startPlugin.pluginName}.dex.jar")
         if (!pluginJar.exists()) {

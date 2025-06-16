@@ -22,6 +22,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.pair
 import com.github.ajalt.clikt.parameters.options.transformValues
 import com.github.ajalt.clikt.parameters.options.versionOption
+import com.github.ajalt.clikt.parameters.types.enum
 import com.squareup.stoic.bridge.StoicProperties
 import com.squareup.stoic.common.FailedExecException
 import com.squareup.stoic.common.LogLevel
@@ -46,6 +47,7 @@ import java.io.FileFilter
 import java.lang.ProcessBuilder.Redirect
 import java.net.Socket
 import java.nio.file.Paths
+import java.util.Collections.synchronizedSet
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
@@ -80,6 +82,9 @@ val adbSerial: String by lazy {
   }
 }
 
+enum class AttachVia(val str: String) {
+  JVMTI("jvmti"), JVMTI_ROOT("jvmti_root"), SDK("sdk")
+}
 
 class Entrypoint : CliktCommand(
   name = "stoic",
@@ -179,12 +184,26 @@ class Entrypoint : CliktCommand(
     help = "Use device with given serial (overrides \$ANDROID_SERIAL)"
   ).trackableOption()
 
-  val pkg by option(
+  val rawPkg by option(
     "--package",
     "--pkg",
     "-n",
     help = "Specify the package of the process to connect to"
-  ).trackableOption().default(DEFAULT_PACKAGE)
+  ).trackableOption()
+
+  val pkg by lazy {
+    rawPkg ?: when (attachVia) {
+      AttachVia.JVMTI -> "com.squareup.stoic.demoapp.withoutsdk"
+      AttachVia.JVMTI_ROOT -> "com.squareup.stoic.demoapp.withsdk"
+      AttachVia.SDK -> "com.squareup.stoic.demoapp.withsdk"
+    }
+  }
+
+  val attachVia by option(
+    "--attach-via",
+    "-a",
+    help = "Specify the method to attach to the target process"
+  ).trackableOption().enum<AttachVia>().default(AttachVia.JVMTI)
 
   // TODO: support --pid/-p to allow attaching by pid
 
@@ -671,7 +690,8 @@ fun runPlugin(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
           "$STOIC_PROTOCOL_VERSION",
           entrypoint.pkg,
           startOption,
-          debugOption
+          debugOption,
+          entrypoint.attachVia.str
         )
       )
     )
@@ -680,22 +700,44 @@ fun runPlugin(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
       .redirectErrorStream(true)
       .start()
 
-    if (minLogLevel <= LogLevel.DEBUG) {
-      proc.inputReader().use { inputReader ->
-        thread {
+    val maybeError = if (minLogLevel <= LogLevel.DEBUG) {
+      val stoicAttachOutputLines = mutableListOf<String>()
+      thread {
+        proc.inputReader().use { inputReader ->
           inputReader.lineSequence().forEach {
             logDebug { it }
+            stoicAttachOutputLines += it
           }
         }
       }
       if (proc.waitFor() != 0) {
-        throw PithyException("stoic-attach failed - see output above")
+        stoicAttachOutputLines.joinToString("\n")
+      } else {
+        null
       }
     } else {
       if (proc.waitFor() != 0) {
-        val stoicAttachOutput = proc.inputReader().readText()
-        throw PithyException("stoic-attach failed\n$stoicAttachOutput")
+        proc.inputReader().readText()
+      } else {
+        null
       }
+    }
+
+    if (maybeError != null) {
+      if (entrypoint.attachVia == AttachVia.JVMTI_ROOT) {
+        if (maybeError.contains("Can't attach agent, process is not debuggable")) {
+          throw PithyException("""
+            ${entrypoint.pkg} appears to not have JDWP enabled
+
+            To fix this you can run the following (may need to set ANDROID_SERIAL appropriately):
+              adb shell su 0 setprop persist.debug.dalvik.vm.jdwp.enabled '"1"' && adb shell su 0 stop && adb shell su 0 start && sleep 3
+            (sleep is necessary to allow system processes to finish restarting):
+
+            NOTE: this will enable jdwp for all apps on the device.
+          """.trimIndent())
+        }
+      }
+      throw PithyException("stoic-attach failed:\n$maybeError")
     }
   }
 

@@ -1063,6 +1063,7 @@ static void CbVmInit(jvmtiEnv* jvmti, JNIEnv* env, [[maybe_unused]] jthread thr)
   jvmti->RunAgentThread(thread.get(), AgentMain, nullptr, JVMTI_THREAD_MIN_PRIORITY);
 }
 
+const int kArtTiVersion = 0x70010200;
 
 template <bool kIsOnLoad>
 static jint AgentStart(JavaVM* vm, char* options, [[maybe_unused]] void* reserved) {
@@ -1070,8 +1071,15 @@ static jint AgentStart(JavaVM* vm, char* options, [[maybe_unused]] void* reserve
 
   if (vm->GetEnv(reinterpret_cast<void**>(&jvmti), JVMTI_VERSION_1_2) != JNI_OK ||
       jvmti == nullptr) {
-    LOG(ERROR) << "unable to obtain JVMTI env.";
-    return JNI_ERR;
+
+    // Retry with kArtTiVersion (for non-debuggable APKs on rooted devices)
+    if (vm->GetEnv(reinterpret_cast<void**>(&jvmti), kArtTiVersion) != JNI_OK ||
+        jvmti == nullptr) {
+      __android_log_print(ANDROID_LOG_ERROR, "stoic", "unable to obtain JVMTI env (tried 0x%x)\n", kArtTiVersion);
+      return JNI_ERR;
+    } else {
+      __android_log_print(ANDROID_LOG_ERROR, "stoic", "successfully obtained JVMTI env (via 0x%x)\n", kArtTiVersion);
+    }
   }
   std::string sopts(options);
   AgentInfo* ai = new AgentInfo;

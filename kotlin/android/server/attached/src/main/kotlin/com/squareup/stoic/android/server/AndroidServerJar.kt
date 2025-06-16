@@ -14,5 +14,5 @@ fun main(stoicDir: String) {
 
   minLogLevel = LogLevel.DEBUG
 
-  ensureServer(stoicDir)
+  StoicUnixDomainSocketServer.ensureRunning(stoicDir = stoicDir, async = false)
 }

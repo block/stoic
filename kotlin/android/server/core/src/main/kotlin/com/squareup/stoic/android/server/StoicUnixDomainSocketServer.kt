@@ -11,13 +11,30 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
-val serverRunning = AtomicBoolean(false)
-fun ensureServer(stoicDir: String) {
-  if (serverRunning.compareAndSet(false, true)) {
-    startServer(stoicDir)
+class StoicUnixDomainSocketServer {
+  companion object {
+    val lock = Any()
+    var isRunning: Boolean = false
+
+    fun ensureRunning(stoicDir: String, async: Boolean) {
+      if (async) {
+        synchronized(lock) {
+          if (isRunning) { return } else { isRunning = true }
+
+          thread(isDaemon = true, name = "stoic-uds-server") {
+            startServer(stoicDir)
+          }
+        }
+      } else {
+        synchronized(lock) {
+          if (isRunning) { return } else { isRunning = true }
+        }
+
+        startServer(stoicDir)
+      }
+    }
   }
 }
 
@@ -47,7 +64,7 @@ private fun startServer(stoicDir: String) {
       try {
         // It doesn't actually matter what we write - we just need to open it for writing
         fifo.outputStream().close()
-        Log.d("stoic", "wrote to $fifo")
+        Log.d("stoic", "wrote to $fifo!!")
       } catch (e: IOException) {
         Log.e("stoic", "Failed to write to $fifo", e)
         throw e
@@ -55,10 +72,13 @@ private fun startServer(stoicDir: String) {
     }
 
     while (true) {
+      Log.i("stoic", "waiting for connection")
       val socket = server.accept()
+      Log.i("stoic", "received connection: $socket")
       thread (name = "stoic-plugin") {
+        Log.i("stoic", "spawned thread for connection: $socket")
         try {
-          StoicPlugin(stoicDir, mapOf(), socket.inputStream, socket.outputStream).pluginMain()
+          StoicPluginServer(stoicDir, mapOf(), socket.inputStream, socket.outputStream).pluginMain()
         } catch (e: Throwable) {
           Log.e("stoic", "unexpected", e)
 

@@ -100,7 +100,8 @@ setup_graalvm
   :demo-plugin:breakpoint:dexJar \
   :demo-plugin:crasher:dexJar \
   :demo-plugin:testsuite:dexJar \
-  :demo-app:without-sdk:assembleDebug
+  :demo-app:without-sdk:assembleDebug \
+  :demo-app:with-sdk:assembleRelease
 
 cp host/main/build/libs/main.jar "$stoic_release_dir"/jar/stoic-host-main.jar
 cp host/main/build/native/nativeCompile/stoic "$stoic_release_dir"/bin/
@@ -108,6 +109,8 @@ cp android/plugin-sdk/build/libs/plugin-sdk.jar "$stoic_release_dir"/sdk/stoic-a
 cp android/plugin-sdk/build/libs/plugin-sdk-sources.jar "$stoic_release_dir"/sdk/stoic-android-plugin-sdk-sources.jar
 cp android/server/attached/build/libs/attached.dex.jar "$stoic_core_sync_dir/stoic/stoic-server-attached.dex.jar"
 cp demo-app/without-sdk/build/outputs/apk/debug/without-sdk-debug.apk "$stoic_core_sync_dir/apk/stoic-demo-app-without-sdk-debug.apk"
+cp demo-app/with-sdk/build/outputs/apk/release/with-sdk-release.apk "$stoic_core_sync_dir/apk/stoic-demo-app-with-sdk-release.apk"
+
 
 # TODO: Find a better location fo demo plugins - we don't need to sync them to the device anymore
 demo_plugins_dir="$stoic_release_dir/demo-plugins"
