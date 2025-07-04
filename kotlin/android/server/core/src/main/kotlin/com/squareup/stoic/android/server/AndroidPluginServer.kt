@@ -1,17 +1,12 @@
 package com.squareup.stoic.android.server
 
 import android.net.LocalServerSocket
-import android.net.LocalSocket
-import android.net.LocalSocketAddress
 import android.util.Log
 import com.squareup.stoic.common.JvmtiAttachOptions
-import com.squareup.stoic.common.LogLevel
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
-import com.squareup.stoic.common.minLogLevel
 import com.squareup.stoic.common.optionsJsonFromStoicDir
 import com.squareup.stoic.common.serverSocketName
 import com.squareup.stoic.common.waitFifo
-import com.squareup.stoic.threadlocals.stoic
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
@@ -34,8 +29,8 @@ private fun startServer(stoicDir: String) {
       File(optionsJsonFromStoicDir(stoicDir)).readText(UTF_8)
     )
     Log.d("stoic", "options: $options")
-    if (options.stoicVersion != STOIC_PROTOCOL_VERSION) {
-      throw Exception("Mismatched versions: ${options.stoicVersion} and $STOIC_PROTOCOL_VERSION")
+    if (options.stoicProtocolVersion != STOIC_PROTOCOL_VERSION) {
+      throw Exception("Mismatched versions: ${options.stoicProtocolVersion} and $STOIC_PROTOCOL_VERSION")
     }
 
     // TODO: fix hack - get the pkg from something other than the dir

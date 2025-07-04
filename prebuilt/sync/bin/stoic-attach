@@ -123,7 +123,7 @@ run_as_compat "$pkg" rm -rf "$pkg_stoic_dir"
 run_as_compat "$pkg" mkdir "$pkg_stoic_dir"
 cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-jvmti-agent.so" "$pkg_so"
 cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-server-attached.dex.jar" "$pkg_server_dex_jar"
-echo "{\"stoicVersion\":$stoic_protocol_version}" | cross_uid_cp 444 - "$pkg_options_json"
+echo "{\"stoicProtocolVersion\":$stoic_protocol_version}" | cross_uid_cp 444 - "$pkg_options_json"
 
 run_as_compat "$pkg" mkfifo "$pkg_stoic_dir/server-up.fifo"
 run_as_compat "$pkg" timeout 20s sh -c ": < $pkg_stoic_dir/server-up.fifo" &

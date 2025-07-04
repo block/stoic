@@ -14,13 +14,13 @@ class MessageWriterOutputStream(
   override fun write(b: ByteArray, off: Int, len: Int) {
     val buf = ByteArray(len)
     System.arraycopy(b, off, buf, 0, len)
-    writer.writeMessage(StreamIO(id, buf))
+    writer.writeOneWay(buf, id, isComplete = false)
   }
 
   override fun close() {
     // Useful for understanding when a stream is prematurely closed
-    logVerbose { Throwable().stackTraceToString() }
+    logVerbose { "stream $id closed: ${Throwable().stackTraceToString()}" }
 
-    writer.writeMessage(StreamClosed(id))
+    writer.writeOneWay(ByteArray(0), id, isComplete = true)
   }
 }

@@ -29,25 +29,21 @@ class PluginClient(
   val reader = MessageReader(DataInputStream(inputStream))
   var nextMessage: Any? = null
 
-  fun peekMessage(): Any {
-    if (nextMessage == null) {
-      nextMessage = reader.readNext()
+  fun handleVersionResult(verifyProtocolVersionRequestId: Int) {
+    val succeeded = reader.consumeNext().let {
+      check(it.isResponse && it.isComplete)
+      check(it.requestId == verifyProtocolVersionRequestId)
+      it.payload as Succeeded
     }
-
-    return nextMessage!!
-  }
-
-  fun consumeMessage(): Any {
-    return peekMessage().also { nextMessage = null }
-  }
-
-  fun handleVersionResult() {
-    val succeeded = consumeMessage() as Succeeded
     logDebug { succeeded.message }
   }
 
-  fun handleStartPluginResult() {
-    val msg = consumeMessage()
+  fun handleStartPluginResult(startPluginRequestId: Int) {
+    val msg = reader.consumeNext().let {
+      check(it.isResponse && it.isComplete)
+      check(it.requestId == startPluginRequestId)
+      it.payload
+    }
     when (msg) {
       is Succeeded -> return // nothing more to do
       is Failed -> {
@@ -70,23 +66,16 @@ class PluginClient(
       )
     }
 
-    val loadPluginPseudoFd = writer.openPseudoFdForWriting()
     val pluginBytes = pluginDexJar.readBytes()
-    writer.writeMessage(
+    val loadPluginRequestId = writer.writeRequest(
         LoadPlugin(
         pluginName = pluginName,
         pluginSha = pluginDexJarSha256Sum!!,
-        pseudoFd = loadPluginPseudoFd,
-      )
+      ),
+      isComplete = false
     )
-    writer.writeMessage(
-      StreamIO(
-        id = loadPluginPseudoFd,
-        buffer = pluginBytes
-      )
-    )
-    writer.closePseudoFdForWriting(loadPluginPseudoFd)
-    writer.writeMessage(
+    writer.writeRequest(pluginDexJar.readBytes(), requestId = loadPluginRequestId)
+    val startPluginRequestId = writer.writeRequest(
       StartPlugin(
         pluginName = pluginName,
         pluginSha = pluginDexJarSha256Sum,
@@ -95,9 +84,16 @@ class PluginClient(
         env = pluginParsedArgs.pluginEnvVars
       )
     )
-    val loadPluginResult = consumeMessage() as Succeeded
+    val loadPluginResult = reader.consumeNext().let {
+      check(it.isResponse && it.isComplete)
+      it.payload as Succeeded
+    }
     logVerbose { loadPluginResult.toString() }
-    val startPluginResult = consumeMessage() as Succeeded
+
+    val startPluginResult = reader.consumeNext().let {
+      check(it.isResponse && it.isComplete)
+      it.payload as Succeeded
+    }
     logVerbose { startPluginResult.toString() }
   }
 
@@ -106,8 +102,11 @@ class PluginClient(
 
     // Since we're a client, we will write to stdin (and read from stdout/stderr)
     writer.openStdinForWriting()
-    writer.writeMessage(VerifyProtocolVersion(STOIC_PROTOCOL_VERSION))
-    writer.writeMessage(
+    val verifyProtocolVersionRequestId = writer.writeRequest(
+      VerifyProtocolVersion(STOIC_PROTOCOL_VERSION)
+    )
+
+    val startPluginRequestId = writer.writeRequest(
       StartPlugin(
         pluginName = pluginName,
         pluginSha = pluginDexJarSha256Sum,
@@ -118,8 +117,8 @@ class PluginClient(
     )
 
     // To minimize roundtrips, we don't read the version result until after we've written RunPlugin
-    handleVersionResult()
-    handleStartPluginResult()
+    handleVersionResult(verifyProtocolVersionRequestId)
+    handleStartPluginResult(startPluginRequestId)
 
     val isFinished = AtomicBoolean(false)
     thread(name = "stdin-daemon", isDaemon = true) {
@@ -132,12 +131,12 @@ class PluginClient(
 
           val byteCount = System.`in`.read(buffer, 0, buffer.size)
           if (byteCount == -1) {
-            writer.writeMessage(StreamClosed(STDIN))
+            writer.writeOneWay(ByteArray(0), STDIN, true)
             break
           } else {
             check(byteCount > 0)
             val bytes = buffer.copyOfRange(0, byteCount)
-            writer.writeMessage(StreamIO(0, bytes))
+            writer.writeOneWay(bytes, STDIN, false)
           }
         }
       } catch (e: Throwable) {
@@ -152,22 +151,26 @@ class PluginClient(
     }
 
     while (true) {
-      val msg = consumeMessage()
-      when (msg) {
-        is StreamIO -> {
-          when (msg.id) {
-            STDOUT -> System.out.write(msg.buffer)
-            STDERR -> System.err.write(msg.buffer)
-            else -> throw IllegalArgumentException("Unrecognized stream id: ${msg.id}")
+      val requestId: Int
+      val payload = reader.consumeNext().let {
+        requestId = it.requestId
+        it.payload
+      }
+      when (payload) {
+        is ByteArray -> {
+          when (requestId) {
+            STDOUT -> System.out.write(payload)
+            STDERR -> System.err.write(payload)
+            else -> throw IllegalArgumentException("Unrecognized stream id: ${requestId}")
           }
         }
         is PluginFinished -> {
           // To allow the server to stop pumping stdin cleanly, we write a StreamClosed message.
-          writer.writeMessage(StreamClosed(STDIN))
+          writer.writeOneWay(ByteArray(0), STDIN, isComplete = true)
           isFinished.set(true)
-          return msg.exitCode
+          return payload.exitCode
         }
-        else -> throw IllegalArgumentException("Unexpected msg: $msg")
+        else -> throw IllegalArgumentException("Unexpected msg: $payload")
       }
     }
   }

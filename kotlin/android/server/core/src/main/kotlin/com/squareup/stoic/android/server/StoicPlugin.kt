@@ -17,8 +17,6 @@ import com.squareup.stoic.common.StartPlugin
 import com.squareup.stoic.common.STDIN
 import com.squareup.stoic.common.STDOUT
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
-import com.squareup.stoic.common.StreamClosed
-import com.squareup.stoic.common.StreamIO
 import com.squareup.stoic.common.VerifyProtocolVersion
 import com.squareup.stoic.common.logVerbose
 import com.squareup.stoic.common.runCommand
@@ -81,36 +79,28 @@ class StoicPlugin(
     builtinPlugins = defaultPlugins + extraPlugins
   }
 
-  fun peekMessage(): Any {
-    if (nextMessage == null) {
-      nextMessage = reader.readNext()
-    }
-
-    return nextMessage!!
-  }
-
-  fun consumeMessage(): Any {
-    return peekMessage().also { nextMessage = null }
-  }
 
   fun handleVersion() {
-    val message = consumeMessage() as VerifyProtocolVersion
-    if (message.protocolVersion != STOIC_PROTOCOL_VERSION) {
-      writer.writeMessage(
+    val decodedMessage = reader.consumeNext()
+    check(decodedMessage.isRequest)
+    val payload = decodedMessage.payload as VerifyProtocolVersion
+    if (payload.protocolVersion != STOIC_PROTOCOL_VERSION) {
+      writer.writeResponse(
+        decodedMessage.requestId,
         Failed(
           FailureCode.UNSPECIFIED.value,
-          "Version mismatch - expected $STOIC_PROTOCOL_VERSION, received ${message.protocolVersion}"
+          "Version mismatch - expected $STOIC_PROTOCOL_VERSION, received ${payload.protocolVersion}"
         )
       )
       throw FailedOperationException()
+    } else {
+      writer.writeResponse(decodedMessage.requestId, Succeeded("version check succeeded"))
     }
-
-    writer.writeMessage(Succeeded("version check succeeded"))
   }
 
   fun handlePlugin() {
     while (true) {
-      when (peekMessage()) {
+      when (reader.peekNext().payload) {
         is StartPlugin -> {
           // Once handleStartPlugin succeeds we're done.
           if (handleStartPlugin()) {
@@ -121,7 +111,7 @@ class StoicPlugin(
         }
         is LoadPlugin -> handleLoadPlugin()
         else -> {
-          logVerbose { "Exiting handlePlugin - next message is ${peekMessage()}" }
+          logVerbose { "Exiting handlePlugin - next message is ${reader.peekNext()}" }
           return
         }
       }
@@ -132,7 +122,16 @@ class StoicPlugin(
    * Returns true for success, false for failure
    */
   fun handleStartPlugin(): Boolean {
-    val startPlugin = consumeMessage() as StartPlugin
+    val startPluginRequestId: Int
+    val startPlugin: StartPlugin
+
+    run {
+      val decodedMessage = reader.consumeNext()
+      check(decodedMessage.isRequest)
+      startPlugin = decodedMessage.payload as StartPlugin
+      startPluginRequestId = decodedMessage.requestId
+    }
+
     val oldClassLoader = Thread.currentThread().contextClassLoader
     try {
       val plugin = if (startPlugin.pluginSha != null) {
@@ -140,7 +139,8 @@ class StoicPlugin(
         val pluginDir = "$stoicDir/plugin-by-sha/${startPlugin.pluginSha}"
         val pluginJar = File("$pluginDir/${startPlugin.pluginName}.dex.jar")
         if (!pluginJar.exists()) {
-          writer.writeMessage(
+          writer.writeResponse(
+            startPluginRequestId,
             Failed(
               FailureCode.PLUGIN_MISSING.value,
               "$pluginJar not loaded"
@@ -197,7 +197,10 @@ class StoicPlugin(
         if (p == null) {
           val msg = "No builtin plugin named: ${startPlugin.pluginName}"
           Log.i("stoic", msg)
-          writer.writeMessage(Failed(FailureCode.PLUGIN_MISSING.value, msg))
+          writer.writeResponse(
+            startPluginRequestId,
+            Failed(FailureCode.PLUGIN_MISSING.value, msg)
+          )
           return false
         } else {
           p
@@ -218,7 +221,7 @@ class StoicPlugin(
       val stderr = PrintStream(MessageWriterOutputStream(STDERR, writer))
       val pluginStoic = Stoic(startPlugin.env, stdin, stdout, stderr)
 
-      writer.writeMessage(Succeeded("Plugin started"))
+      writer.writeResponse(startPluginRequestId, Succeeded("Plugin started"))
 
       var exitCode = -1
       val t = thread {
@@ -228,26 +231,27 @@ class StoicPlugin(
 
         // We write PluginFinished to signal the client to send StreamClosed(STDIN), which signals us
         // to stop pumping messages
-        writer.writeMessage(PluginFinished(exitCode))
+        writer.writeOneWay(PluginFinished(exitCode))
       }
 
       while (true) {
-        val msg = consumeMessage()
-        when (msg) {
-          is StreamIO -> {
-            if (msg.id != STDIN) { throw IllegalArgumentException("Unexpected stream id: ${msg.id}") }
-            stdinOutPipe.write(msg.buffer)
-          }
-          is StreamClosed -> {
-            if (msg.id != STDIN) { throw IllegalArgumentException("Unexpected stream id: ${msg.id}") }
-            logVerbose { "StreamClosed(STDIN)" }
-            stdinOutPipe.close()
+        val decodedMessage = reader.consumeNext()
+        val payload = decodedMessage.payload
+        val requestId = decodedMessage.requestId
+        when (payload) {
+          is ByteArray -> {
+            if (requestId != STDIN) { throw IllegalArgumentException("Unexpected stream id: $requestId") }
+            stdinOutPipe.write(payload)
+            if (decodedMessage.isComplete) {
+              logVerbose { "StreamClosed(STDIN)" }
+              stdinOutPipe.close()
 
-            // TODO: Really, we shouldn't break here - there might be other inputs to pump
-            //   But, right now we don't surface those to clients, so it's okay.
-            //   If we didn't break here, we'd need an alternate way to end the pump when the plugin
-            //   finished.
-            break
+              // TODO: Really, we shouldn't break here - there might be other inputs to pump
+              //   But, right now we don't surface those to clients, so it's okay.
+              //   If we didn't break here, we'd need an alternate way to end the pump when the plugin
+              //   finished.
+              break
+            }
           }
         }
       }
@@ -260,20 +264,20 @@ class StoicPlugin(
   }
 
   fun handleLoadPlugin() {
-    val loadPlugin = consumeMessage() as LoadPlugin
-    val loadPluginStreamIO = consumeMessage() as StreamIO
-    if (loadPlugin.pseudoFd != loadPluginStreamIO.id) {
-      throw IllegalStateException(
-        "Pseudo fd mismatch: ${loadPlugin.pseudoFd} != ${loadPluginStreamIO.id}"
-      )
+    val requestId: Int
+    val loadPlugin = reader.consumeNext().let {
+      check(it.isRequest)
+      check(!it.isComplete)
+      requestId = it.requestId
+      it.payload as LoadPlugin
     }
+    val loadPluginBytes = reader.consumeNext().let {
+      check(it.isRequest)
 
-    // TODO: support streaming the plugin across multiple StreamIO messages
-    val streamClosed = consumeMessage() as StreamClosed
-    if (loadPlugin.pseudoFd != streamClosed.id) {
-      throw IllegalStateException(
-        "Pseudo fd mismatch: ${loadPlugin.pseudoFd} != ${streamClosed.id}"
-      )
+      // TODO: support streaming the plugin across multiple StreamIO messages
+      check(it.isComplete)
+
+      it.payload as ByteArray
     }
 
     val pluginByShaDir = File("$stoicDir/plugin-by-sha/${loadPlugin.pluginSha}")
@@ -284,9 +288,9 @@ class StoicPlugin(
 
     pluginByShaDir.mkdirs()
     val pluginJar = File(pluginByShaDir, "${loadPlugin.pluginName}.dex.jar")
-    pluginJar.writeBytes(loadPluginStreamIO.buffer)
+    pluginJar.writeBytes(loadPluginBytes)
     pluginJar.setWritable(false)
-    writer.writeMessage(Succeeded("Load plugin succeeded"))
+    writer.writeResponse(requestId, Succeeded("Load plugin succeeded"))
   }
 
   fun pluginMain() {
@@ -296,7 +300,8 @@ class StoicPlugin(
       handlePlugin()
     } catch (e: Throwable) {
       Log.e("stoic", "pluginMain threw", e)
-      writer.writeMessage(ProtocolError(e.stackTraceToString()))
+      // TODO: we should also write to stderr
+      writer.writeOneWay(ProtocolError(e.stackTraceToString()))
 
       // TODO: Instead of this hacky sleep, we should wait for an ACK from the client
       // Give the message time to make it to the other side before we close the connection
