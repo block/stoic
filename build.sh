@@ -146,7 +146,6 @@ if [ -z "$stoic_path" ]; then
     >&2 echo "WARNING: stoic is missing from your PATH. Next, please run:"
     >&2 echo
     >&2 echo "    echo export PATH=\$PATH:$stoic_dir/out/rel/bin >> $config_file && source $config_file"
-    >&2 echo "    stoic init-config"
 elif [ "$stoic_path" != "$stoic_dir/out/rel/bin/stoic" ]; then
     >&2 echo "WARNING: Your PATH is currently including stoic from: $stoic_path"
     >&2 echo "The version you just built is in \`$stoic_dir/out/rel/bin\`"
