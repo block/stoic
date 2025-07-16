@@ -57,10 +57,33 @@ export ANDROID_NDK="$ANDROID_HOME/ndk/$android_ndk_version"
 
 cd "$stoic_kotlin_dir"
 
-# TODO: Also need brew install graalvm/tap/graalvm-ce-java17
-GRAALVM_HOME="$(brew info graalvm-ce-java17 | grep 'export JAVA_HOME' | sed -E 's/^ *export JAVA_HOME="(.*)"/\1/')"
-export GRAALVM_HOME
+setup_graalvm() {
+  if [ -n "${GRAALVM_HOME:-}" ] && [ -d "$GRAALVM_HOME" ]; then
+    return 0
+  fi
+  if  { brew list --cask  --versions graalvm-ce-java17 >/dev/null 2>&1; }; then
+    export GRAALVM_HOME="$(brew info graalvm-ce-java17 | grep 'export JAVA_HOME' | sed -E 's/^ *export JAVA_HOME="(.*)"/\1/')"
+    return 0
+  fi
+  # macOS – install via Homebrew if necessary
+  if [[ "$(uname)" == "Darwin" ]]; then
+    if ! command -v brew >/dev/null 2>&1; then
+      >&2 echo "Homebrew is required to automatically install GraalVM. Either install Homebrew, install GraalVM manually, or export GRAALVM_HOME before running this script."
+      exit 1
+    fi
+    
+    brew install graalvm/tap/graalvm-ce-java17
+    export GRAALVM_HOME="$(brew info graalvm-ce-java17 | grep 'export JAVA_HOME' | sed -E 's/^ *export JAVA_HOME="(.*)"/\1/')"
+    # macOS Gatekeeper marks downloaded binaries as quarantined; unquarantine.
+    xattr -d -r com.apple.quarantine "$GRAALVM_HOME" 2>/dev/null || true
+  else
+    # Other platforms – ask the user to install GraalVM manually.
+    >&2 echo "Automatic GraalVM installation is only supported on macOS. Please install GraalVM CE Java 17 and set GRAALVM_HOME."
+    exit 1
+  fi
+}
 
+setup_graalvm
 
 # :demo-app:without-sdk is the debug app that's used by default. It needs to be debug so
 # that stoic can attach to it.
