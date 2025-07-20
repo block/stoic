@@ -686,15 +686,15 @@ fun runPlugin(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
           inputReader.lineSequence().forEach {
             logDebug { it }
           }
-          if (proc.waitFor() != 0) {
-            logError { "stoic-attach failed - see output above" }
-          }
-        }.join()
+        }
+      }
+      if (proc.waitFor() != 0) {
+        throw PithyException("stoic-attach failed - see output above")
       }
     } else {
       if (proc.waitFor() != 0) {
         val stoicAttachOutput = proc.inputReader().readText()
-        logError { "stoic-attach failed\n$stoicAttachOutput" }
+        throw PithyException("stoic-attach failed\n$stoicAttachOutput")
       }
     }
   }
