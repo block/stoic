@@ -62,7 +62,8 @@ setup_graalvm() {
     return 0
   fi
   if  { brew list --cask  --versions graalvm-ce-java17 >/dev/null 2>&1; }; then
-    export GRAALVM_HOME="$(brew info graalvm-ce-java17 | grep 'export JAVA_HOME' | sed -E 's/^ *export JAVA_HOME="(.*)"/\1/')"
+    GRAALVM_HOME="$(brew info graalvm-ce-java17 | grep 'export JAVA_HOME' | sed -E 's/^ *export JAVA_HOME="(.*)"/\1/')"
+    export GRAALVM_HOME
     return 0
   fi
   # macOS – install via Homebrew if necessary
@@ -73,7 +74,8 @@ setup_graalvm() {
     fi
     
     brew install graalvm/tap/graalvm-ce-java17
-    export GRAALVM_HOME="$(brew info graalvm-ce-java17 | grep 'export JAVA_HOME' | sed -E 's/^ *export JAVA_HOME="(.*)"/\1/')"
+    GRAALVM_HOME="$(brew info graalvm-ce-java17 | grep 'export JAVA_HOME' | sed -E 's/^ *export JAVA_HOME="(.*)"/\1/')"
+    export GRAALVM_HOME
     # macOS Gatekeeper marks downloaded binaries as quarantined; unquarantine.
     # The quarantine attribute lives on the GraalVM bundle root (…/graalvm-ce-java17-xx). Remove it from there too.
     xattr -r -d com.apple.quarantine "$(dirname "$(dirname "$GRAALVM_HOME")")" 2>/dev/null || true
