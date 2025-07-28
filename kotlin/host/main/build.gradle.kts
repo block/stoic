@@ -38,7 +38,7 @@ graalvmNative {
             // Fixes: Error: Classes that should be initialized at run time got initialized during image building:
             //   kotlin.DeprecationLevel was unintentionally initialized at build time. To see why kotlin.DeprecationLevel got initialized use --trace-class-initialization=kotlin.DeprecationLevel
             //   
-            buildArgs.add("--initialize-at-build-time")
+            buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
 
             imageName.set("stoic")
             mainClass.set("com.squareup.stoic.host.main.HostMainKt")
