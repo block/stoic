@@ -5,6 +5,7 @@ import com.squareup.stoic.ExitCodeException
 import com.squareup.stoic.Stoic
 import com.squareup.stoic.common.Failed
 import com.squareup.stoic.common.FailureCode
+import com.squareup.stoic.common.JvmtiAttachOptions
 import com.squareup.stoic.common.LoadPlugin
 import com.squareup.stoic.common.Succeeded
 import com.squareup.stoic.common.MessageReader
@@ -36,6 +37,7 @@ import kotlin.concurrent.thread
 
 class StoicPluginServer(
   private val stoicDir: String,
+  private val options: JvmtiAttachOptions,
   extraPlugins: Map<String, StoicNamedPlugin>,
   private val socketInputStream: InputStream,
   private val socketOutputStream: OutputStream,
@@ -52,8 +54,8 @@ class StoicPluginServer(
         override fun run(args: List<String>): Int {
           stoic.stdout.println(
             """
-              protocol-version: $STOIC_PROTOCOL_VERSION
-              connected-via: TODO
+              protocol-version: ${options.stoicProtocolVersion}
+              attached-via: ${options.attachedVia}
               builtin-plugins: ${builtinPlugins.keys}
             """.trimIndent()
           )

@@ -24,6 +24,7 @@ import com.github.ajalt.clikt.parameters.options.transformValues
 import com.github.ajalt.clikt.parameters.options.versionOption
 import com.github.ajalt.clikt.parameters.types.enum
 import com.squareup.stoic.bridge.StoicProperties
+import com.squareup.stoic.common.AttachVia
 import com.squareup.stoic.common.FailedExecException
 import com.squareup.stoic.common.LogLevel
 import com.squareup.stoic.common.PithyException
@@ -42,6 +43,7 @@ import com.squareup.stoic.common.stdout
 import com.squareup.stoic.common.stoicDeviceSyncDir
 import com.squareup.stoic.common.waitFor
 import com.squareup.stoic.common.withStatus
+import java.io.EOFException
 import java.io.File
 import java.io.FileFilter
 import java.lang.ProcessBuilder.Redirect
@@ -80,10 +82,6 @@ val adbSerial: String by lazy {
         }
       }
   }
-}
-
-enum class AttachVia(val str: String) {
-  JVMTI("jvmti"), JVMTI_ROOT("jvmti_root"), SDK("sdk")
 }
 
 class Entrypoint : CliktCommand(
@@ -590,21 +588,29 @@ fun runTool(entrypoint: Entrypoint): Int {
 }
 
 fun runPluginFastPath(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
+  return runPluginFastPath(
+    pkg = entrypoint.pkg,
+    pluginParsedArgs = PluginParsedArgs(
+      pluginModule = entrypoint.subcommand!!,
+      pluginArgs = entrypoint.subcommandArgs,
+      pluginEnvVars = entrypoint.env.toMap(),
+    ),
+    dexJarInfo = dexJarInfo
+  )
+}
+
+fun runPluginFastPath(
+  pkg: String,
+  pluginParsedArgs: PluginParsedArgs,
+  dexJarInfo: Pair<File, String>?
+): Int {
   // `adb forward`-powered fast path
-  val serverSocketName = serverSocketName(entrypoint.pkg)
+  val serverSocketName = serverSocketName(pkg)
   val portStr = adbProcessBuilder(
     "forward", "tcp:0", "localabstract:$serverSocketName"
   ).stdout()
   try {
     Socket("localhost", portStr.toInt()).use {
-      val pluginParsedArgs = PluginParsedArgs(
-        pkg = entrypoint.pkg,
-        restartApp = entrypoint.restartApp,
-        startIfNeeded = !entrypoint.noStartIfNeeded,
-        pluginModule = entrypoint.subcommand!!,
-        pluginArgs = entrypoint.subcommandArgs,
-        pluginEnvVars = entrypoint.env.toMap(),
-      )
       val client = PluginClient(dexJarInfo, pluginParsedArgs, it.inputStream, it.outputStream)
       return client.handle()
     }
@@ -739,9 +745,27 @@ fun runPlugin(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
       }
       throw PithyException("stoic-attach failed:\n$maybeError")
     }
+
+    logInfo { "waiting for up to 3 seconds for the port to be up" }
+    val startTime = System.nanoTime()
+    while ((System.nanoTime() - startTime) < 3_000_000_000) {
+      try {
+        runPluginFastPath(
+          entrypoint.pkg,
+          PluginParsedArgs("stoic-noop"),
+          null,
+        )
+        break
+      } catch (e: EOFException) {
+        logInfo { "server not up yet: ${e.stackTraceToString()}" }
+        logInfo { "Sleeping 100ms and retrying..." }
+        Thread.sleep(100)
+      }
+    }
   }
 
-  logInfo { "retrying fast-path" }
+
+  logInfo { "server up - retrying fast-path" }
   return runPluginFastPath(entrypoint, dexJarInfo)
 }
 

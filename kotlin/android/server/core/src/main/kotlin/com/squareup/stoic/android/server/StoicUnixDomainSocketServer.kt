@@ -73,12 +73,22 @@ private fun startServer(stoicDir: String) {
 
     while (true) {
       Log.i("stoic", "waiting for connection")
+
+      // Note: If the process gets frozen
+      // (https://source.android.com/docs/core/perf/cached-apps-freezer)
+      // then the thread will get stuck here
       val socket = server.accept()
+
       Log.i("stoic", "received connection: $socket")
       thread (name = "stoic-plugin") {
-        Log.i("stoic", "spawned thread for connection: $socket")
         try {
-          StoicPluginServer(stoicDir, mapOf(), socket.inputStream, socket.outputStream).pluginMain()
+          StoicPluginServer(
+            stoicDir,
+            options,
+            mapOf(),
+            socket.inputStream,
+            socket.outputStream
+          ).pluginMain()
         } catch (e: Throwable) {
           Log.e("stoic", "unexpected", e)
 
