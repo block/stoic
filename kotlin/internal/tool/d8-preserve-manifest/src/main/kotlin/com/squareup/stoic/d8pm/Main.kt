@@ -36,10 +36,10 @@ fun d8PreserveManifest(jarFile: File, apkFile: File, tempDir: File) {
       jarFile.absolutePath
     ).redirectError(ProcessBuilder.Redirect.INHERIT).start().waitFor() == 0)
 
-  ZipOutputStream(FileOutputStream(apkFile)).use { zipOut ->
+  ZipOutputStream(apkFile.outputStream().buffered()).use { zipOut ->
     dexOutDir.listFiles()?.forEach { file ->
       zipOut.putNextEntry(ZipEntry(file.name))
-      FileInputStream(file).use { it.copyTo(zipOut) }
+      file.inputStream().buffered().use { it.copyTo(zipOut) }
       zipOut.closeEntry()
     }
   }
