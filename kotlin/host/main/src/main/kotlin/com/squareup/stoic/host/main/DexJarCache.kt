@@ -2,24 +2,21 @@
 
 package com.squareup.stoic.host.main
 
-import com.squareup.stoic.bridge.StoicProperties
 import com.squareup.stoic.common.LogLevel
-import com.squareup.stoic.common.PithyException
 import com.squareup.stoic.common.Sha
 import com.squareup.stoic.common.logBlock
 import com.squareup.stoic.common.logInfo
+import com.squareup.stoic.d8pm.d8PreserveManifest
 import kotlinx.serialization.ExperimentalSerializationApi
-import java.io.File
-import java.io.FileInputStream
-import java.nio.file.*
-import java.nio.file.attribute.FileTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
+import java.io.File
 import java.io.FileOutputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
-import kotlin.io.path.createTempDirectory
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.attribute.FileTime
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
 import kotlin.io.path.readBytes
@@ -58,27 +55,7 @@ object DexJarCache {
 
   private fun jarToApk(jarFile: File, apkFile: File) {
     logBlock(LogLevel.INFO, { "dexing $jarFile to $apkFile" }) {
-      val dexOutDir = createTempDirectory("stoic-dex").toFile()
-      val androidBuildToolsVersion = StoicProperties.ANDROID_BUILD_TOOLS_VERSION
-      val androidHome = System.getenv("ANDROID_HOME") ?: error("Need to set ANDROID_HOME")
-      val d8Path = File("$androidHome/build-tools/$androidBuildToolsVersion/d8")
-
-      check(
-        ProcessBuilder(
-          d8Path.absolutePath,
-          "--min-api", StoicProperties.ANDROID_MIN_SDK.toString(),
-          "--output", dexOutDir.absolutePath,
-          jarFile.absolutePath
-        ).redirectError(ProcessBuilder.Redirect.INHERIT).start().waitFor() == 0
-      ) { "d8 failed" }
-
-      ZipOutputStream(FileOutputStream(apkFile)).use { zipOut ->
-        dexOutDir.listFiles()?.forEach { file ->
-          zipOut.putNextEntry(ZipEntry(file.name))
-          FileInputStream(file).use { it.copyTo(zipOut) }
-          zipOut.closeEntry()
-        }
-      }
+      d8PreserveManifest(jarFile, apkFile)
     }
   }
 
