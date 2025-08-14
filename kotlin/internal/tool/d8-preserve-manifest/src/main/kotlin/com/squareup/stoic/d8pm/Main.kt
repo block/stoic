@@ -34,7 +34,7 @@ fun d8PreserveManifest(jarFile: File, apkFile: File, tempDir: File) {
       "--min-api", StoicProperties.ANDROID_MIN_SDK.toString(),
       "--output", dexOutDir.absolutePath,
       jarFile.absolutePath
-    ).start().waitFor() == 0)
+    ).redirectError(ProcessBuilder.Redirect.INHERIT).start().waitFor() == 0)
 
   ZipOutputStream(FileOutputStream(apkFile)).use { zipOut ->
     dexOutDir.listFiles()?.forEach { file ->
