@@ -6,7 +6,7 @@ import kotlinx.serialization.json.Json
 import java.io.DataInputStream
 import java.io.DataOutputStream
 
-const val STOIC_PROTOCOL_VERSION = 4
+const val STOIC_PROTOCOL_VERSION = 5
 const val STDIN = 0
 const val STDOUT = 1
 const val STDERR = 2

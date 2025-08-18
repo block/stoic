@@ -138,13 +138,13 @@ class StoicPluginServer(
       val plugin = if (startPlugin.pluginSha != null) {
         val parentClassLoader = StoicPluginServer::class.java.classLoader
         val pluginDir = "$stoicDir/plugin-by-sha/${startPlugin.pluginSha}"
-        val pluginJar = File("$pluginDir/${startPlugin.pluginName}.dex.jar")
-        if (!pluginJar.exists()) {
+        val pluginApk = File("$pluginDir/${startPlugin.pluginName}.apk")
+        if (!pluginApk.exists()) {
           writer.writeResponse(
             startPluginRequestId,
             Failed(
               FailureCode.PLUGIN_MISSING.value,
-              "$pluginJar not loaded"
+              "$pluginApk not loaded"
             )
           )
           return false
@@ -152,12 +152,12 @@ class StoicPluginServer(
 
         val dexoutDir = File("$pluginDir/${startPlugin.pluginName}-dexout")
         dexoutDir.mkdirs()
-        Log.d("stoic", "Making classLoader: (pluginJar: $pluginJar, dexoutDir: $dexoutDir)")
+        Log.d("stoic", "Making classLoader: (pluginApk: $pluginApk, dexoutDir: $dexoutDir)")
 
         // It's important to use canonical paths to avoid triggering
         // https://github.com/square/stoic/issues/2
         val classLoader = DexClassLoader(
-          pluginJar.canonicalPath,
+          pluginApk.canonicalPath,
           dexoutDir.canonicalPath,
           null,
           parentClassLoader)
@@ -288,9 +288,9 @@ class StoicPluginServer(
     }
 
     pluginByShaDir.mkdirs()
-    val pluginJar = File(pluginByShaDir, "${loadPlugin.pluginName}.dex.jar")
-    pluginJar.writeBytes(loadPluginBytes)
-    pluginJar.setWritable(false)
+    val pluginApk = File(pluginByShaDir, "${loadPlugin.pluginName}.apk")
+    pluginApk.writeBytes(loadPluginBytes)
+    pluginApk.setWritable(false)
     writer.writeResponse(requestId, Succeeded("Load plugin succeeded"))
   }
 

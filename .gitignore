@@ -4,3 +4,5 @@ out/
 build/
 .gradle/
 .kotlin/
+local.properties
+.idea/
