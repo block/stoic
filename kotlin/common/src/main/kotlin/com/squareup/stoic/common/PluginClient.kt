@@ -1,5 +1,6 @@
 package com.squareup.stoic.common
 
+import com.squareup.stoic.bridge.StoicProperties
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
@@ -11,10 +12,6 @@ import kotlin.concurrent.thread
 
 const val stoicDeviceDir = "/data/local/tmp/.stoic"
 const val stoicDeviceSyncDir = "$stoicDeviceDir/sync"
-const val stoicDeviceSyncPluginDir = "$stoicDeviceSyncDir/plugins"
-const val shebangJarDir = "$stoicDeviceDir/shebang_jar"
-const val stoicDemoAppWithoutSdk = "com.squareup.stoic.demoapp.withoutsdk"
-const val runAsCompat = "$stoicDeviceSyncDir/bin/run-as-compat"
 
 class PluginClient(
   dexJarInfo: Pair<File, String>?,
@@ -27,15 +24,21 @@ class PluginClient(
   val pluginName = pluginDexJar?.name?.removeSuffix(".dex.jar") ?: pluginParsedArgs.pluginModule
   val writer = MessageWriter(DataOutputStream(outputStream))
   val reader = MessageReader(DataInputStream(inputStream))
-  var nextMessage: Any? = null
 
   fun handleVersionResult(verifyProtocolVersionRequestId: Int) {
-    val succeeded = reader.consumeNext().let {
-      check(it.isResponse && it.isComplete)
-      check(it.requestId == verifyProtocolVersionRequestId)
-      it.payload as Succeeded
+    try {
+      val succeeded = reader.consumeNext().let {
+        check(it.isResponse && it.isComplete)
+        check(it.requestId == verifyProtocolVersionRequestId)
+        it.payload as Succeeded
+      }
+      logDebug { succeeded.message }
+    } catch (e: Exception) {
+      // We treat any exception encountered while handling the verify-protocol-version request as a
+      // MismatchedVersionException because it's likely that a change in the structure of the
+      // request/response is responsible for the problem.
+      throw MismatchedVersionException(e.message)
     }
-    logDebug { succeeded.message }
   }
 
   fun handleStartPluginResult(startPluginRequestId: Int) {
@@ -66,7 +69,6 @@ class PluginClient(
       )
     }
 
-    val pluginBytes = pluginDexJar.readBytes()
     val loadPluginRequestId = writer.writeRequest(
         LoadPlugin(
         pluginName = pluginName,
@@ -103,7 +105,7 @@ class PluginClient(
     // Since we're a client, we will write to stdin (and read from stdout/stderr)
     writer.openStdinForWriting()
     val verifyProtocolVersionRequestId = writer.writeRequest(
-      VerifyProtocolVersion(STOIC_PROTOCOL_VERSION)
+      VerifyProtocolVersion(STOIC_PROTOCOL_VERSION, StoicProperties.STOIC_VERSION_NAME)
     )
 
     val startPluginRequestId = writer.writeRequest(

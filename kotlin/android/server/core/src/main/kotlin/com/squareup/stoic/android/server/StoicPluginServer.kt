@@ -3,6 +3,7 @@ package com.squareup.stoic.android.server
 import android.util.Log
 import com.squareup.stoic.ExitCodeException
 import com.squareup.stoic.Stoic
+import com.squareup.stoic.bridge.StoicProperties
 import com.squareup.stoic.common.Failed
 import com.squareup.stoic.common.FailureCode
 import com.squareup.stoic.common.JvmtiAttachOptions
@@ -19,6 +20,7 @@ import com.squareup.stoic.common.STDIN
 import com.squareup.stoic.common.STDOUT
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.VerifyProtocolVersion
+import com.squareup.stoic.common.logInfo
 import com.squareup.stoic.common.logVerbose
 import com.squareup.stoic.common.runCommand
 import com.squareup.stoic.threadlocals.stoic
@@ -95,7 +97,17 @@ class StoicPluginServer(
       )
       throw FailedOperationException()
     } else {
-      writer.writeResponse(decodedMessage.requestId, Succeeded("version check succeeded"))
+      val msg = if (payload.stoicVersionName != StoicProperties.STOIC_VERSION_NAME) {
+        // This is normally fine, but if we forget to rev the protocol version when we make a
+        // breaking change it will cause problems. If we see a problem it's worth considering if
+        // there was a breaking change.
+        "version check succeeded but stoic version name doesn't match " +
+          "${payload.stoicVersionName} != ${StoicProperties.STOIC_VERSION_NAME}"
+      } else {
+        "version check succeeded and stoic version name matches: ${StoicProperties.STOIC_VERSION_NAME}"
+      }
+      logInfo { msg }
+      writer.writeResponse(decodedMessage.requestId, Succeeded(msg))
     }
   }
 

@@ -57,7 +57,8 @@ enum class FailureCode(val value: Int) {
 
 @Serializable
 data class VerifyProtocolVersion(
-  val protocolVersion: Int
+  val protocolVersion: Int,
+  val stoicVersionName: String,
 )
 
 @Serializable

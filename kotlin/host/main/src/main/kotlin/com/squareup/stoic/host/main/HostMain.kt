@@ -27,6 +27,7 @@ import com.squareup.stoic.bridge.StoicProperties
 import com.squareup.stoic.common.AttachVia
 import com.squareup.stoic.common.FailedExecException
 import com.squareup.stoic.common.LogLevel
+import com.squareup.stoic.common.MismatchedVersionException
 import com.squareup.stoic.common.PithyException
 import com.squareup.stoic.common.PluginClient
 import com.squareup.stoic.common.PluginParsedArgs
@@ -35,6 +36,7 @@ import com.squareup.stoic.common.logBlock
 import com.squareup.stoic.common.logDebug
 import com.squareup.stoic.common.logError
 import com.squareup.stoic.common.logInfo
+import com.squareup.stoic.common.logWarn
 import com.squareup.stoic.common.minLogLevel
 import com.squareup.stoic.common.runCommand
 import com.squareup.stoic.common.serverSocketName
@@ -88,7 +90,8 @@ class Entrypoint : CliktCommand(
   name = "stoic",
 ) {
   companion object {
-    const val DEFAULT_PACKAGE = "com.squareup.stoic.demoapp.withoutsdk"
+    const val DEFAULT_DEBUGGABLE_PACKAGE = "com.squareup.stoic.demoapp.withoutsdk"
+    const val DEFAULT_NON_DEBUGGABLE_PACKAGE = "com.squareup.stoic.demoapp.withsdk"
   }
   init {
     context { allowInterspersedArgs = false }
@@ -191,9 +194,9 @@ class Entrypoint : CliktCommand(
 
   val pkg by lazy {
     rawPkg ?: when (attachVia) {
-      AttachVia.JVMTI -> "com.squareup.stoic.demoapp.withoutsdk"
-      AttachVia.JVMTI_ROOT -> "com.squareup.stoic.demoapp.withsdk"
-      AttachVia.SDK -> "com.squareup.stoic.demoapp.withsdk"
+      AttachVia.JVMTI -> DEFAULT_DEBUGGABLE_PACKAGE
+      AttachVia.JVMTI_ROOT -> DEFAULT_NON_DEBUGGABLE_PACKAGE
+      AttachVia.SDK -> DEFAULT_NON_DEBUGGABLE_PACKAGE
     }
   }
 
@@ -632,7 +635,7 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
 
   val isPlugin = if (dexJarInfo != null || entrypoint.isBuiltin) {
     true
-  } else if (entrypoint.pkg != Entrypoint.DEFAULT_PACKAGE) {
+  } else if (entrypoint.pkg !in listOf(Entrypoint.DEFAULT_DEBUGGABLE_PACKAGE, Entrypoint.DEFAULT_NON_DEBUGGABLE_PACKAGE)) {
     // Tools don't take pkg as argument, so it must be a plugin
     true
   } else if (entrypoint.commandName in listOf("stoic-list", "stoic-status", "stoic-noop")) {
@@ -646,7 +649,31 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
   }
 
   return if (isPlugin) {
-    runPlugin(entrypoint, dexJarInfo)
+    try {
+      runPlugin(entrypoint, dexJarInfo)
+    } catch (e: MismatchedVersionException) {
+      if (entrypoint.pkg == Entrypoint.DEFAULT_NON_DEBUGGABLE_PACKAGE) {
+        // The non-debuggable package contains the Stoic SDK. If we have an old version installed it
+        // could cause a problem. We can automatically try to fix it by uninstalling and retrying.
+        logWarn { "runPlugin threw ${e.stackTraceToString()} - uninstalling and retrying" }
+
+        // We ignore the exit code since the packages might not actually be installed
+        adbProcessBuilder("uninstall", Entrypoint.DEFAULT_NON_DEBUGGABLE_PACKAGE).waitFor(null)
+
+        runPlugin(entrypoint, dexJarInfo)
+      } else if (entrypoint.attachVia == AttachVia.SDK) {
+        throw Exception(
+          "Protocol version mismatch - please rebuild the app with sdk version: ${StoicProperties.STOIC_VERSION_NAME}",
+          e
+        )
+      } else {
+        """
+          Protocol version mismatch - please try restarting the app (you can use the --restart flag)
+          to force Stoic to re-attach.
+        """.trimIndent()
+        throw e
+      }
+    }
   } else {
     runTool(entrypoint)
   }
