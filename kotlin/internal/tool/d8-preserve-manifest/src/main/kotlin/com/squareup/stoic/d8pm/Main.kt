@@ -21,6 +21,7 @@ fun d8PreserveManifest(jarFile: File, apkFile: File) {
   d8PreserveManifest(jarFile, apkFile, tempDir = Files.createTempDirectory("d8-preserve-manifest").toFile())
 }
 
+// TODO: This is broken. The intent is to run D8, but preserve META-INF/MANIFEST.MF from the jar
 fun d8PreserveManifest(jarFile: File, apkFile: File, tempDir: File) {
   val androidBuildToolsVersion = StoicProperties.ANDROID_BUILD_TOOLS_VERSION
   val androidHome = System.getenv("ANDROID_HOME") ?: error("Need to set ANDROID_HOME")

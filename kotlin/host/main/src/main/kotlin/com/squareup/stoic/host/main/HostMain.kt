@@ -51,7 +51,6 @@ import java.io.FileFilter
 import java.lang.ProcessBuilder.Redirect
 import java.net.Socket
 import java.nio.file.Paths
-import java.util.Collections.synchronizedSet
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
@@ -841,7 +840,7 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): Pair<File, String>? {
       throw PithyException("File not found: $pluginName")
     }
 
-    return DexJarCache.resolve(file)
+    return ApkCache.resolve(file)
   }
 
   val pluginDexJar = "$pluginName.dex.jar"
@@ -869,7 +868,7 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): Pair<File, String>? {
           }
         }
 
-        return DexJarCache.resolve(File(outputPath))
+        return ApkCache.resolve(File(outputPath))
       }
     }
   }
@@ -877,7 +876,7 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): Pair<File, String>? {
   if (entrypoint.demoAllowed) {
     val corePluginDexJar = File("$stoicDemoPluginsDir/$pluginDexJar")
     if (corePluginDexJar.exists()) {
-      return DexJarCache.resolve(corePluginDexJar)
+      return ApkCache.resolve(corePluginDexJar)
     } else if (entrypoint.isDemo) {
       throw PithyException("Demo plugin `$pluginName` not found, to see list: stoic --list --demo")
     }

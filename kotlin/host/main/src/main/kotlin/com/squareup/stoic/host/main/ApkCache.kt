@@ -22,7 +22,13 @@ import kotlin.io.path.exists
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
 
-object DexJarCache {
+/**
+ * Cache of APK files.
+ *
+ * We support input in the form of either APK or JAR files. If input is in JAR form them we need to
+ * turn it into an APK first.
+ */
+object ApkCache {
   private const val VERSION = 2
 
   /** Root directory (${java.io.tmpdir}/dex_cache) **/
@@ -36,7 +42,7 @@ object DexJarCache {
   fun resolve(jarOrApkFile: File): Pair<File, String> {
     val keyDir = computeKeyDir(jarOrApkFile)
     get(keyDir, jarOrApkFile)?.let { return it }
-    logInfo { "DexJarCache.get failed - regenerating sha/apk" }
+    logInfo { "ApkCache.get failed - regenerating sha/apk" }
 
     val apk = computeCachedApkPath(keyDir, jarOrApkFile)
     Files.createDirectories(keyDir)
