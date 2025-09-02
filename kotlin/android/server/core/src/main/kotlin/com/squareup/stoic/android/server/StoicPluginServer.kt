@@ -177,8 +177,8 @@ class StoicPluginServer(
         Log.d("stoic", "made classLoader: $classLoader (parent: $parentClassLoader)")
 
         // TODO: It'd be nice to allow people to follow the Java convention of declaring a main
-        //   method in the manifest, and then insert a StoicMainKt wrapper in the dex.jar (or even
-        //   insert the manifest into the dex.jar)
+        //   method in the manifest, and then insert a StoicMainKt wrapper in the apk (or even
+        //   insert the manifest into the apk)
         val pluginMainClass = classLoader.loadClass("MainKt")
         Log.d("stoic", "loaded class: $pluginMainClass via ${pluginMainClass.classLoader}")
         val args = startPlugin.pluginArgs.toTypedArray()

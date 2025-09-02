@@ -94,12 +94,12 @@ setup_graalvm
   :host:main:assemble \
   :host:main:nativeCompile \
   :android:plugin-sdk:assemble \
-  :android:server:attached:dexJar \
-  :demo-plugin:helloworld:dexJar \
-  :demo-plugin:appexitinfo:dexJar \
-  :demo-plugin:breakpoint:dexJar \
-  :demo-plugin:crasher:dexJar \
-  :demo-plugin:testsuite:dexJar \
+  :android:server:attached:apk \
+  :demo-plugin:helloworld:apk \
+  :demo-plugin:appexitinfo:apk \
+  :demo-plugin:breakpoint:apk \
+  :demo-plugin:crasher:apk \
+  :demo-plugin:testsuite:apk \
   :demo-app:without-sdk:assembleDebug \
   :demo-app:with-sdk:assembleRelease
 
@@ -107,7 +107,7 @@ cp host/main/build/libs/main.jar "$stoic_release_dir"/jar/stoic-host-main.jar
 cp host/main/build/native/nativeCompile/stoic "$stoic_release_dir"/bin/
 cp android/plugin-sdk/build/libs/plugin-sdk.jar "$stoic_release_dir"/sdk/stoic-android-plugin-sdk.jar
 cp android/plugin-sdk/build/libs/plugin-sdk-sources.jar "$stoic_release_dir"/sdk/stoic-android-plugin-sdk-sources.jar
-cp android/server/attached/build/libs/attached.dex.jar "$stoic_core_sync_dir/stoic/stoic-server-attached.dex.jar"
+cp android/server/attached/build/libs/attached.apk "$stoic_core_sync_dir/stoic/stoic-server-attached.apk"
 cp demo-app/without-sdk/build/outputs/apk/debug/without-sdk-debug.apk "$stoic_core_sync_dir/apk/stoic-demo-app-without-sdk-debug.apk"
 cp demo-app/with-sdk/build/outputs/apk/release/with-sdk-release.apk "$stoic_core_sync_dir/apk/stoic-demo-app-with-sdk-release.apk"
 
@@ -115,11 +115,11 @@ cp demo-app/with-sdk/build/outputs/apk/release/with-sdk-release.apk "$stoic_core
 # TODO: Find a better location fo demo plugins - we don't need to sync them to the device anymore
 demo_plugins_dir="$stoic_release_dir/demo-plugins"
 mkdir -p "$demo_plugins_dir"
-cp demo-plugin/appexitinfo/build/libs/appexitinfo.dex.jar "$demo_plugins_dir"/
-cp demo-plugin/breakpoint/build/libs/breakpoint.dex.jar "$demo_plugins_dir"/
-cp demo-plugin/crasher/build/libs/crasher.dex.jar "$demo_plugins_dir"/
-cp demo-plugin/helloworld/build/libs/helloworld.dex.jar "$demo_plugins_dir"/
-cp demo-plugin/testsuite/build/libs/testsuite.dex.jar "$demo_plugins_dir"/
+cp demo-plugin/appexitinfo/build/libs/appexitinfo.apk "$demo_plugins_dir"/
+cp demo-plugin/breakpoint/build/libs/breakpoint.apk "$demo_plugins_dir"/
+cp demo-plugin/crasher/build/libs/crasher.apk "$demo_plugins_dir"/
+cp demo-plugin/helloworld/build/libs/helloworld.apk "$demo_plugins_dir"/
+cp demo-plugin/testsuite/build/libs/testsuite.apk "$demo_plugins_dir"/
 
 cd "$stoic_dir/native"
 make -j16 all

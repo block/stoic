@@ -41,9 +41,9 @@ With the aforementioned dependencies in place, Stoic will:
 2. The target will then notify the client that it's ready for connection
 3. The client will then connect to the server and send it a StartPlugin request
    containing the name and timestamp of the code to be run.
-4. If the plugin isn't availabl,e the server will respond with an error.
+4. If the plugin isn't available, the server will respond with an error.
 5. The client will send a LoadPlugin request, along with the contents of the
-   dex.jar, and then resend the StartPlugin request
+   plugin apk, and then resend the StartPlugin request
 6. The client and server will exchange multiplexed IO - i.e.
    stdin/stdout/stderr or some mutually agreed upon protocol.
 7. When the plugin finishes (either normally or abnormally) it sends a

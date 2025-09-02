@@ -801,21 +801,21 @@ static void AgentMain(jvmtiEnv* jvmti, JNIEnv* jni, [[maybe_unused]] void* arg) 
   // Setup args that we need for our ClassLoader
   //
 
-  std::string stoicDexJarChars = std::string(stoicDir.c_str()) + std::string("/stoic-server-attached.dex.jar");
-  LOG(DEBUG) << "Found stoicDexJarChars: " << stoicDexJarChars.c_str();
+  std::string stoicApkChars = std::string(stoicDir.c_str()) + std::string("/stoic-server-attached.apk");
+  LOG(DEBUG) << "stoicApkChars: " << stoicApkChars.c_str();
 
   std::string dexOutputDirChars = std::string(stoicDir.c_str()) + std::string("/dexout");
-  LOG(DEBUG) << "Found dexOutputDirChars: " << dexOutputDirChars.c_str();
+  LOG(DEBUG) << "dexOutputDirChars: " << dexOutputDirChars.c_str();
 
-  ScopedLocalRef<jstring> stoicDexJarString(jni, jni->NewStringUTF(stoicDexJarChars.c_str()));
-  CHECK(stoicDexJarString.get() != nullptr);
+  ScopedLocalRef<jstring> stoicApkString(jni, jni->NewStringUTF(stoicApkChars.c_str()));
+  CHECK(stoicApkString.get() != nullptr);
 
   ScopedLocalRef<jstring> dexOutputDirString(jni, jni->NewStringUTF(dexOutputDirChars.c_str()));
   CHECK(dexOutputDirString.get() != nullptr);
 
 
   //
-  // Construct a new ClassLoader for stoic-server-attached.dex.jar
+  // Construct a new ClassLoader for stoic-server-attached.apk
   //
 
   ScopedLocalRef<jclass> klass_DexClassLoader(jni, jni->FindClass("dalvik/system/DexClassLoader"));
@@ -831,7 +831,7 @@ static void AgentMain(jvmtiEnv* jvmti, JNIEnv* jni, [[maybe_unused]] void* arg) 
   ScopedLocalRef<jobject> dexClassLoader(jni, jni->NewObject(
       klass_DexClassLoader.get(),
       method_DexClassLoader_ctor,
-      stoicDexJarString.get(),
+      stoicApkString.get(),
       dexOutputDirString.get(),
       nullptr,
       originalClassLoader.get()));

@@ -19,7 +19,7 @@ class PluginClient(
   outputStream: OutputStream
 ) {
   val pluginApk = apkInfo?.file
-  val pluginDexJarSha256Sum = apkInfo?.sha256sum
+  val pluginApkSha256Sum = apkInfo?.sha256sum
   val pluginName = pluginApk?.name?.removeSuffix(".apk") ?: pluginParsedArgs.pluginModule
   val writer = MessageWriter(DataOutputStream(outputStream))
   val reader = MessageReader(DataInputStream(inputStream))
@@ -71,7 +71,7 @@ class PluginClient(
     val loadPluginRequestId = writer.writeRequest(
         LoadPlugin(
         pluginName = pluginName,
-        pluginSha = pluginDexJarSha256Sum!!,
+        pluginSha = pluginApkSha256Sum!!,
       ),
       isComplete = false
     )
@@ -79,7 +79,7 @@ class PluginClient(
     val startPluginRequestId = writer.writeRequest(
       StartPlugin(
         pluginName = pluginName,
-        pluginSha = pluginDexJarSha256Sum,
+        pluginSha = pluginApkSha256Sum,
         pluginArgs = pluginParsedArgs.pluginArgs,
         minLogLevel = minLogLevel.name,
         env = pluginParsedArgs.pluginEnvVars
@@ -110,7 +110,7 @@ class PluginClient(
     val startPluginRequestId = writer.writeRequest(
       StartPlugin(
         pluginName = pluginName,
-        pluginSha = pluginDexJarSha256Sum,
+        pluginSha = pluginApkSha256Sum,
         pluginArgs = pluginParsedArgs.pluginArgs,
         minLogLevel = minLogLevel.name,
         env = pluginParsedArgs.pluginEnvVars,

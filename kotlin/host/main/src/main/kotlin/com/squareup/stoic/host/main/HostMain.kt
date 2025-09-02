@@ -529,9 +529,9 @@ fun gatherPluginList(entrypoint: Entrypoint): List<String> {
   // TODO: Invoke builtin stoic-list to get list of builtin plugins (and allow --package)
   val pluginList = mutableListOf<String>()
 
-  val dexJarFilter = object : FileFilter {
+  val apkFilter = object : FileFilter {
     override fun accept(file: File): Boolean {
-      return file.isFile && file.name.endsWith(".dex.jar")
+      return file.isFile && file.name.endsWith(".apk")
     }
   }
 
@@ -547,9 +547,9 @@ fun gatherPluginList(entrypoint: Entrypoint): List<String> {
   }
 
   if (entrypoint.demoAllowed) {
-    val demoPrebuilts = File(stoicDemoPluginsDir).listFiles(dexJarFilter)!!
+    val demoPrebuilts = File(stoicDemoPluginsDir).listFiles(apkFilter)!!
     demoPrebuilts.forEach {
-      pluginList.add("${it.name.removeSuffix(".dex.jar")} (--demo)")
+      pluginList.add("${it.name.removeSuffix(".apk")} (--demo)")
     }
   }
 
@@ -844,7 +844,7 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
     return ApkCache.resolve(file)
   }
 
-  val pluginDexJar = "$pluginName.dex.jar"
+  val pluginApk = "$pluginName.apk"
   if (entrypoint.userAllowed) {
     val usrPluginSrcDir = "$stoicHostUsrPluginSrcDir/$pluginName"
     if (File(usrPluginSrcDir).exists()) {
@@ -875,9 +875,9 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
   }
 
   if (entrypoint.demoAllowed) {
-    val corePluginDexJar = File("$stoicDemoPluginsDir/$pluginDexJar")
-    if (corePluginDexJar.exists()) {
-      return ApkCache.resolve(corePluginDexJar)
+    val corePluginApk = File("$stoicDemoPluginsDir/$pluginApk")
+    if (corePluginApk.exists()) {
+      return ApkCache.resolve(corePluginApk)
     } else if (entrypoint.isDemo) {
       throw PithyException("Demo plugin `$pluginName` not found, to see list: stoic --list --demo")
     }

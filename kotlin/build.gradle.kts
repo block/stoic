@@ -44,12 +44,12 @@ subprojects {
     plugins.withId("java") {
         val jarTask = tasks.named<Jar>("jar")
 
-        // Builds .dex.jar, preserving the manifest
-        tasks.register<JavaExec>("dexJar") {
+        // Builds .apk, preserving the manifest
+        tasks.register<JavaExec>("apk") {
             dependsOn(jarTask)
 
             val jarFile = jarTask.flatMap { it.archiveFile }.map { it.asFile }
-            val dexJarFile = jarFile.map { File(it.path.replace(".jar", ".dex.jar")) }
+            val apkFile = jarFile.map { File(it.path.replace(".jar", ".apk")) }
 
             val jarToApkPreserveManifest = project(":internal:tool:jar-to-apk-preserve-manifest")
             classpath = jarToApkPreserveManifest
@@ -60,13 +60,13 @@ subprojects {
               .runtimeClasspath
             mainClass.set(jarToApkPreserveManifest.the<JavaApplication>().mainClass)
             inputs.file(jarFile)
-            outputs.file(dexJarFile)
+            outputs.file(apkFile)
 
             // Set args lazily, during execution
             doFirst {
                 args = listOf(
                   jarFile.get().absolutePath,
-                  dexJarFile.get().absolutePath
+                  apkFile.get().absolutePath
                 )
             }
         }
