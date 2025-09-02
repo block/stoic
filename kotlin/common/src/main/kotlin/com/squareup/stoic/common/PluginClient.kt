@@ -3,7 +3,6 @@ package com.squareup.stoic.common
 import com.squareup.stoic.bridge.StoicProperties
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -14,14 +13,14 @@ const val stoicDeviceDir = "/data/local/tmp/.stoic"
 const val stoicDeviceSyncDir = "$stoicDeviceDir/sync"
 
 class PluginClient(
-  dexJarInfo: Pair<File, String>?,
+  apkInfo: FileWithSha?,
   val pluginParsedArgs: PluginParsedArgs,
   inputStream: InputStream,
   outputStream: OutputStream
 ) {
-  val pluginDexJar = dexJarInfo?.first
-  val pluginDexJarSha256Sum = dexJarInfo?.second
-  val pluginName = pluginDexJar?.name?.removeSuffix(".dex.jar") ?: pluginParsedArgs.pluginModule
+  val pluginApk = apkInfo?.file
+  val pluginDexJarSha256Sum = apkInfo?.sha256sum
+  val pluginName = pluginApk?.name?.removeSuffix(".apk") ?: pluginParsedArgs.pluginModule
   val writer = MessageWriter(DataOutputStream(outputStream))
   val reader = MessageReader(DataInputStream(inputStream))
 
@@ -59,7 +58,7 @@ class PluginClient(
     }
 
     // Need to load plugin
-    if (pluginDexJar == null) {
+    if (pluginApk == null) {
       // TODO: Need to throw a sub-class of PithyException so we can catch it and try a tool instead
       throw PithyException(
         """
@@ -76,7 +75,7 @@ class PluginClient(
       ),
       isComplete = false
     )
-    writer.writeRequest(pluginDexJar.readBytes(), requestId = loadPluginRequestId)
+    writer.writeRequest(pluginApk.readBytes(), requestId = loadPluginRequestId)
     val startPluginRequestId = writer.writeRequest(
       StartPlugin(
         pluginName = pluginName,

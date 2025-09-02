@@ -26,6 +26,7 @@ import com.github.ajalt.clikt.parameters.types.enum
 import com.squareup.stoic.bridge.StoicProperties
 import com.squareup.stoic.common.AttachVia
 import com.squareup.stoic.common.FailedExecException
+import com.squareup.stoic.common.FileWithSha
 import com.squareup.stoic.common.LogLevel
 import com.squareup.stoic.common.MismatchedVersionException
 import com.squareup.stoic.common.PithyException
@@ -589,7 +590,7 @@ fun runTool(entrypoint: Entrypoint): Int {
   return 0
 }
 
-fun runPluginFastPath(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
+fun runPluginFastPath(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
   return runPluginFastPath(
     pkg = entrypoint.pkg,
     pluginParsedArgs = PluginParsedArgs(
@@ -597,14 +598,14 @@ fun runPluginFastPath(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): 
       pluginArgs = entrypoint.subcommandArgs,
       pluginEnvVars = entrypoint.env.toMap(),
     ),
-    dexJarInfo = dexJarInfo
+    apkInfo = apkInfo
   )
 }
 
 fun runPluginFastPath(
   pkg: String,
   pluginParsedArgs: PluginParsedArgs,
-  dexJarInfo: Pair<File, String>?
+  apkInfo: FileWithSha?
 ): Int {
   // `adb forward`-powered fast path
   val serverSocketName = serverSocketName(pkg)
@@ -613,7 +614,7 @@ fun runPluginFastPath(
   ).stdout()
   try {
     Socket("localhost", portStr.toInt()).use {
-      val client = PluginClient(dexJarInfo, pluginParsedArgs, it.inputStream, it.outputStream)
+      val client = PluginClient(apkInfo, pluginParsedArgs, it.inputStream, it.outputStream)
       return client.handle()
     }
   } finally {
@@ -630,9 +631,9 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
 
   // If resolvePluginModule returns null then we'll try assuming its a builtin (if we resolved the
   // device) if that fails, then we'll check for a tool
-  val dexJarInfo = resolveUserOrDemo(entrypoint)
+  val apkInfo = resolveUserOrDemo(entrypoint)
 
-  val isPlugin = if (dexJarInfo != null || entrypoint.isBuiltin) {
+  val isPlugin = if (apkInfo != null || entrypoint.isBuiltin) {
     true
   } else if (entrypoint.pkg !in listOf(Entrypoint.DEFAULT_DEBUGGABLE_PACKAGE, Entrypoint.DEFAULT_NON_DEBUGGABLE_PACKAGE)) {
     // Tools don't take pkg as argument, so it must be a plugin
@@ -649,7 +650,7 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
 
   return if (isPlugin) {
     try {
-      runPlugin(entrypoint, dexJarInfo)
+      runPlugin(entrypoint, apkInfo)
     } catch (e: MismatchedVersionException) {
       if (entrypoint.pkg == Entrypoint.DEFAULT_NON_DEBUGGABLE_PACKAGE) {
         // The non-debuggable package contains the Stoic SDK. If we have an old version installed it
@@ -659,7 +660,7 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
         // We ignore the exit code since the packages might not actually be installed
         adbProcessBuilder("uninstall", Entrypoint.DEFAULT_NON_DEBUGGABLE_PACKAGE).waitFor(null)
 
-        runPlugin(entrypoint, dexJarInfo)
+        runPlugin(entrypoint, apkInfo)
       } else if (entrypoint.attachVia == AttachVia.SDK) {
         throw Exception(
           "Protocol version mismatch - please rebuild the app with sdk version: ${StoicProperties.STOIC_VERSION_NAME}",
@@ -678,10 +679,10 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
   }
 }
 
-fun runPlugin(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
+fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
   if (!entrypoint.restartApp) {
     try {
-      return runPluginFastPath(entrypoint, dexJarInfo)
+      return runPluginFastPath(entrypoint, apkInfo)
     } catch (e: PithyException) {
       // PithyException will be caught at the outermost level
       throw e
@@ -792,7 +793,7 @@ fun runPlugin(entrypoint: Entrypoint, dexJarInfo: Pair<File, String>?): Int {
 
 
   logInfo { "server up - retrying fast-path" }
-  return runPluginFastPath(entrypoint, dexJarInfo)
+  return runPluginFastPath(entrypoint, apkInfo)
 }
 
 fun checkRequiredSdkPackages(vararg required: String) {
@@ -823,7 +824,7 @@ fun shellEscapeCmd(cmdArgs: List<String>): String {
   }
 }
 
-fun resolveUserOrDemo(entrypoint: Entrypoint): Pair<File, String>? {
+fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
   val pluginName = entrypoint.subcommand!!
   logDebug { "Attempting to resolve '$pluginName'" }
   if (listOf(entrypoint.isDemo, entrypoint.isBuiltin, entrypoint.isUser).count { it } > 1) {

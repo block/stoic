@@ -2,11 +2,12 @@
 
 package com.squareup.stoic.host.main
 
+import com.squareup.stoic.common.FileWithSha
 import com.squareup.stoic.common.LogLevel
 import com.squareup.stoic.common.Sha
 import com.squareup.stoic.common.logBlock
 import com.squareup.stoic.common.logInfo
-import com.squareup.stoic.d8pm.d8PreserveManifest
+import com.squareup.stoic.apk.jarToApkPreserveManifest
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -39,7 +40,7 @@ object ApkCache {
     Files.createDirectories(cacheRoot)
   }
 
-  fun resolve(jarOrApkFile: File): Pair<File, String> {
+  fun resolve(jarOrApkFile: File): FileWithSha {
     val keyDir = computeKeyDir(jarOrApkFile)
     get(keyDir, jarOrApkFile)?.let { return it }
     logInfo { "ApkCache.get failed - regenerating sha/apk" }
@@ -56,12 +57,12 @@ object ApkCache {
     }
 
     val apkSha256Sum = updateMeta(keyDir, jarOrApkFile)
-    return Pair(apk.toFile(), apkSha256Sum)
+    return FileWithSha(apk.toFile(), apkSha256Sum)
   }
 
   private fun jarToApk(jarFile: File, apkFile: File) {
     logBlock(LogLevel.INFO, { "dexing $jarFile to $apkFile" }) {
-      d8PreserveManifest(jarFile, apkFile)
+      jarToApkPreserveManifest(jarFile, apkFile)
     }
   }
 
@@ -69,7 +70,7 @@ object ApkCache {
    * Return the cached apk for [jarOrApkFile] if present *and* still valid.
    * Returns `null` on cache miss.
    */
-  private fun get(keyDir: Path, jarOrApkFile: File): Pair<File, String>? {
+  private fun get(keyDir: Path, jarOrApkFile: File): FileWithSha? {
     val metaFile = keyDir.resolve("meta")
     if (!metaFile.exists()) {
       return null
@@ -79,7 +80,7 @@ object ApkCache {
     val apk = computeCachedApkPath(keyDir, jarOrApkFile)
     val currentCTime = retrieveCTime(Paths.get(meta.canonicalPath))
     if (currentCTime == meta.posixCTime) {
-      return Pair(apk.toFile(), meta.apkSha256Sum)
+      return FileWithSha(apk.toFile(), meta.apkSha256Sum)
     } else {
       return null
     }

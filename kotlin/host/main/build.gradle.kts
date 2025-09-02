@@ -18,7 +18,7 @@ dependencies {
     implementation(kotlin("stdlib"))
     implementation(project(":common"))
     implementation(project(":bridge"))
-    implementation(project(":internal:tool:d8-preserve-manifest"))
+    implementation(project(":internal:tool:jar-to-apk-preserve-manifest"))
 }
 
 tasks.withType<KotlinCompile> {

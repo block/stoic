@@ -51,14 +51,14 @@ subprojects {
             val jarFile = jarTask.flatMap { it.archiveFile }.map { it.asFile }
             val dexJarFile = jarFile.map { File(it.path.replace(".jar", ".dex.jar")) }
 
-            val d8PreserveManifest = project(":internal:tool:d8-preserve-manifest")
-            classpath = d8PreserveManifest
+            val jarToApkPreserveManifest = project(":internal:tool:jar-to-apk-preserve-manifest")
+            classpath = jarToApkPreserveManifest
               .extensions
               .getByType<JavaPluginExtension>()
               .sourceSets
               .getByName("main")
               .runtimeClasspath
-            mainClass.set(d8PreserveManifest.the<JavaApplication>().mainClass)
+            mainClass.set(jarToApkPreserveManifest.the<JavaApplication>().mainClass)
             inputs.file(jarFile)
             outputs.file(dexJarFile)
 

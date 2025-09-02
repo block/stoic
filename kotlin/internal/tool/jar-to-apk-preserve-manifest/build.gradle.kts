@@ -8,5 +8,5 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.squareup.stoic.d8pm.MainKt")
+    mainClass.set("com.squareup.stoic.apk.MainKt")
 }
