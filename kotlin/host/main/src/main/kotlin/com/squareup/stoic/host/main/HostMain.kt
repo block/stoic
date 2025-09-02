@@ -796,13 +796,6 @@ fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
   return runPluginFastPath(entrypoint, apkInfo)
 }
 
-fun checkRequiredSdkPackages(vararg required: String) {
-  runCommand(
-    listOf("$stoicReleaseDir/script/check_required_sdk_packages.sh") + required,
-    inheritIO = true
-  )
-}
-
 fun syncDevice() {
   logBlock(LogLevel.INFO, { "syncing device" }) {
     // The /. prevents creating an additional level of nesting when the destination directory

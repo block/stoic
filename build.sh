@@ -14,8 +14,10 @@ mkdir -p "$stoic_release_dir"/sdk
 mkdir -p "$stoic_release_dir"/bin
 rsync --archive "$stoic_dir"/prebuilt/ "$stoic_release_dir"/
 
+AUTO_YES=0
 for arg in "$@"; do
     case $arg in
+        --yes) AUTO_YES=1 ;;
         *)
             >&2 echo "Unrecognized arg: $arg"
             exit 1
@@ -35,22 +37,85 @@ verify_submodules() {
 
 if ! verify_submodules native/libbase/ native/fmtlib/ native/libnativehelper/; then
     >&2 echo "Submodules are missing. Likely your ran git clone without --recurse-submodules."
-    >&2 echo "Okay to update? (Will run \`git submodule update --init --recursive\`)"
-    read -r -p "Y/n? " choice
-    case "$(echo "$choice" | tr '[:upper:]' '[:lower:]')" in
-      n*)
-        exit 1
-        ;;
-      *)
+    >&2 echo "Will run \`git submodule update --init --recursive\`"
+    if [[ "$AUTO_YES" -eq 1 ]]; then
         >/dev/null pushd "$stoic_dir"
         git submodule update --init --recursive
         >/dev/null popd
-        ;;
-    esac
+    else
+        read -r -p "Okay? (Y/n) " choice
+        case "$(echo "$choice" | tr '[:upper:]' '[:lower:]')" in
+          n*)
+            exit 1
+            ;;
+          *)
+            >/dev/null pushd "$stoic_dir"
+            git submodule update --init --recursive
+            >/dev/null popd
+            ;;
+        esac
+    fi
 fi
 
 mkdir -p "$stoic_core_sync_dir"/{plugins,stoic,bin,apk}
-"$stoic_dir"/prebuilt/script/check_required_sdk_packages.sh "build-tools;$android_build_tools_version" "platforms;android-$android_target_sdk" "ndk;$android_ndk_version"
+
+
+#
+# Install required SDK packages
+#
+
+if [ -z "${ANDROID_HOME:-}" ]; then
+    echo "ANDROID_HOME env variable not defined. This should be the path to your Android SDK."
+    echo "e.g."
+    echo "    export ANDROID_HOME=~/Library/Android/sdk"
+    exit 1
+fi
+
+# Find sdkmanager script (falling back to the old location if the new one
+# is missing)
+sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+if [ ! -e "$sdkmanager" ]; then
+    >&2 echo "Failed to find sdkmanager in its usual location."
+    >&2 echo "Please update Android SDK Command-line Tools to the latest version."
+    exit 1
+fi
+
+sdk_packages="$("$sdkmanager" --list_installed 2>/dev/null | awk '{print $1}')"
+required_packages=(
+  "build-tools;$android_build_tools_version"
+  "platforms;android-$android_target_sdk"
+  "ndk;$android_ndk_version"
+)
+missing=()
+
+for required in "${required_packages[@]}"; do
+    if ! echo "$sdk_packages" | grep "$required" >/dev/null; then
+        missing+=("$required")
+    fi
+done
+
+if [ ${#missing[@]} -gt 0 ]; then
+    >&2 echo "stoic requires Android SDK packages: ${missing[*]}"
+    >&2 echo "Will run \`$sdkmanager ${missing[*]}\`"
+    if [[ "$AUTO_YES" -eq 1 ]]; then
+        for x in "${missing[@]}"; do
+            $sdkmanager "$x"
+        done
+    else
+        read -r -p "Okay? (Y/n) " choice
+        case "$(echo "$choice" | tr '[:upper:]' '[:lower:]')" in
+          n*)
+            exit 1
+            ;;
+          *)
+            for x in "${missing[@]}"; do
+                $sdkmanager "$x"
+            done
+            ;;
+        esac
+    fi
+fi
+
 
 # Used by native/Makefile.inc
 export ANDROID_NDK="$ANDROID_HOME/ndk/$android_ndk_version"

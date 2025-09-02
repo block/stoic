@@ -1,0 +1,36 @@
+# .github/workflows/build.yml
+name: Build (Stoic)
+on:
+  workflow_dispatch:
+  push:
+    branches: ["tomm/github-actions"]  # adjust as needed
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive, fetch-depth: 0 }
+
+      # Set a STANDARD JDK for Gradle/AGP
+      - name: Set up Temurin 17 (default JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle   # keep Gradle cache
+
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+
+      - name: Build
+        run: |
+          chmod +x ./build.sh
+          ./build.sh --yes
+
+      - name: Upload out/rel as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stoic-out-rel
+          path: out/rel/**
+          if-no-files-found: error
