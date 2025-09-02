@@ -17,6 +17,37 @@ repositories {
     mavenCentral()
 }
 
+allprojects {
+  plugins.withId("java") {
+    the<JavaPluginExtension>().toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+  }
+  plugins.withId("org.jetbrains.kotlin.jvm") {
+    org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class.java
+      .cast(extensions.getByName("kotlin"))
+      .jvmToolchain(17)
+  }
+}
+
+// For Android modules:
+subprojects {
+  plugins.withId("com.android.application") {
+    extensions.configure<com.android.build.gradle.AppExtension>("android") {
+      compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+      }
+    }
+  }
+  plugins.withId("com.android.library") {
+    extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
+      compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+      }
+    }
+  }
+}
+
 val prebuiltDir = rootProject.file("../prebuilt")
 val versionFile = prebuiltDir.resolve("STOIC_VERSION")
 val versionName = versionFile.readText().trim()
