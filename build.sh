@@ -11,7 +11,7 @@ source "$stoic_dir/prebuilt/stoic.properties"
 
 mkdir -p "$stoic_release_dir"/jar
 mkdir -p "$stoic_release_dir"/sdk
-mkdir -p "$stoic_release_dir"/bin
+mkdir -p "$stoic_release_dir"/bin/darwin-arm64
 rsync --archive "$stoic_dir"/prebuilt/ "$stoic_release_dir"/
 
 AUTO_YES=0
@@ -169,7 +169,7 @@ setup_graalvm
   :demo-app:with-sdk:assembleRelease
 
 cp host/main/build/libs/main.jar "$stoic_release_dir"/jar/stoic-host-main.jar
-cp host/main/build/native/nativeCompile/stoic "$stoic_release_dir"/bin/
+cp host/main/build/native/nativeCompile/stoic "$stoic_release_dir"/bin/darwin-arm64/
 cp android/plugin-sdk/build/libs/plugin-sdk.jar "$stoic_release_dir"/sdk/stoic-android-plugin-sdk.jar
 cp android/plugin-sdk/build/libs/plugin-sdk-sources.jar "$stoic_release_dir"/sdk/stoic-android-plugin-sdk-sources.jar
 cp android/server/attached/build/libs/attached.apk "$stoic_core_sync_dir/stoic/stoic-server-attached.apk"
@@ -216,10 +216,10 @@ if [ -z "$stoic_path" ]; then
 
     >&2 echo "WARNING: stoic is missing from your PATH. Next, please run:"
     >&2 echo
-    >&2 echo "    echo export PATH=\$PATH:$stoic_dir/out/rel/bin >> $config_file && source $config_file"
-elif [ "$stoic_path" != "$stoic_dir/out/rel/bin/stoic" ]; then
+    >&2 echo "    echo export PATH=\$PATH:$stoic_dir/out/rel/bin/darwin-arm64 >> $config_file && source $config_file"
+elif [ "$stoic_path" != "$stoic_dir/out/rel/bin/darwin-arm64/stoic" ]; then
     >&2 echo "WARNING: Your PATH is currently including stoic from: $stoic_path"
-    >&2 echo "The version you just built is in \`$stoic_dir/out/rel/bin\`"
+    >&2 echo "The version you just built is in \`$stoic_dir/out/rel/bin/darwin-arm64\`"
 else
     >&2 echo "stoic correctly resolves to the version you just built."
 fi

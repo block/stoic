@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# This script gets copied in the release bin/jvm directory. We can find
+# stoic-host-main.jar relative to that directory.
+script_dir="$(realpath "$(dirname "$(readlink -f "$0")")")"
+java -jar "$script_dir/../../jar/stoic-host-main.jar" "$@"
