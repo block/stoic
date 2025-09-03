@@ -28,9 +28,41 @@ jobs:
           chmod +x ./build.sh
           ./build.sh --yes
 
-      - name: Upload out/rel as artifact
+      - name: Pack out/rel as tar (preserves perms & symlinks)
+        run: tar --create --gzip --file=stoic-release.tar.gz --directory=out/rel .
+
+      - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
-          name: stoic-out-rel
-          path: out/rel/**
-          if-no-files-found: error
+          name: stoic-release-tar-gz
+          path: stoic-release.tar.gz
+
+  emulator:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+
+      - name: Download build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: stoic-release-tar-gz
+          path: .
+
+      - name: Unpack (perms preserved)
+        run: |
+          mkdir -p out/rel
+          tar -C out/rel -xzf stoic-release.tar.gz
+
+      - name: Run JVM stoic on emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          script: |
+            set -eu
+            adb wait-for-device
+            out/rel/bin/jvm/stoic --verbose --attach-via=sdk helloworld

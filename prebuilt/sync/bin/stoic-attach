@@ -203,7 +203,8 @@ attach_sdk() {
 
   # If the app was just installed or manually stopped via 'am force-stop' then
   # we'll need to unstop it in order for the broadcast to work.
-  pm unstop "$pkg"
+  # (unstop was added in Android 15, so this might fail)
+  pm unstop "$pkg" || true
 
   first_pid="$(pidof "$pkg" || true)"
 
