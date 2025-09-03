@@ -467,10 +467,12 @@ fun main(rawArgs: Array<String>) {
   isGraal = System.getProperty("org.graalvm.nativeimage.imagecode") != null
   stoicReleaseDir = if (isGraal) {
     // This is how we find the release dir from the GraalVM-generated binary
+    // The graalvm-binary will be in bin/darwin-arm64/stoic, so we need to walk up three parents.
     val pathToSelf = ProcessHandle.current().info().command().get()
-    Paths.get(pathToSelf).toRealPath().parent.parent.toAbsolutePath().toString()
+    Paths.get(pathToSelf).toRealPath().parent.parent.parent.toAbsolutePath().toString()
   } else {
     // This is how we find the release dir when normally (via a jar)
+    // The jar file will be in jar/stoic-host-main.jar, so we need to walk up two parents.
     val uri = Entrypoint::class.java.protectionDomain.codeSource.location.toURI()
     File(uri).toPath().parent.parent.toAbsolutePath().toString()
   }
