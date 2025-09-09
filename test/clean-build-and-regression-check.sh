@@ -10,7 +10,7 @@ rm -rf "$script_dir/../out"
 (cd "$script_dir/../kotlin" && ./gradlew clean)
 "$script_dir/../build.sh"
 
-if [ "$(realpath "$(which stoic)")" != "$(realpath "$script_dir/../out/rel/bin/stoic")" ]; then
+if [ "$(realpath "$(which stoic)")" != "$(realpath "$script_dir/../out/rel/bin/darwin-arm64/stoic")" ]; then
   echo stoic resolves to "$(which stoic)" - not the one we just built
   exit 1
 fi

@@ -89,13 +89,14 @@ cross_uid_cp() {
 target_process_exited=0
 wait_for_server_up_pid=""
 logcat_pid=""
+selinux_denials_pgid_file=""
 cleanup_attach() {
   if [ -n "${wait_for_server_up_pid:-}" ]; then
     # server_up_pid is the process running timeout - killing that doesn't
     # actually unblock anything - we'd need to kill the pid inside (the one
     # that's running sh). Instead, we just write to the fifo to cause it to
     # exit
-    run_as_compat "$pkg" timeout 1s sh -c ": > $pkg_stoic_dir/server-up.fifo"
+    run_as_compat "$pkg" timeout 1s sh -c ": > $pkg_stoic_dir/server-up.fifo" || true
   fi
   if [ -n "${logcat_pid:-}" ]; then
     if [ "$target_process_exited" = "1" ]; then
@@ -107,6 +108,10 @@ cleanup_attach() {
 
     kill "$logcat_pid" || true
   fi
+  if [ -n "${selinux_denials_pgid_file:-}" ]; then
+    run_as_compat "$pkg" sh -c "kill -TERM -\$(cat $selinux_denials_pgid_file)" || true
+  fi
+  >&2 echo "Finished cleanup_attach\n$attach_error_summary"
 }
 
 attach_jvmti() {
@@ -117,12 +122,17 @@ attach_jvmti() {
   pkg_so="$pkg_stoic_dir/stoic-jvmti-agent.so"
   pkg_server_apk="$pkg_stoic_dir/stoic-server-attached.apk"
   pkg_options_json="$pkg_stoic_dir/options.json"
+  attach_error_summary=""
 
   # TODO: Use a lock to ensure that multiple processes aren't attempting to bring
   # the server up simultaneously
 
   >&2 echo "cleaning $pkg_stoic_dir"
-  run_as_compat "$pkg" rm -rf "$pkg_stoic_dir"
+  if ! run_as_compat "$pkg" rm -rf "$pkg_stoic_dir"; then
+    # In case there are leftover files from a previous attach using jvmti_root
+    "$script_dir/su-run-as" "$pkg" rm -rf "$pkg_stoic_dir"
+  fi
+
   run_as_compat "$pkg" mkdir "$pkg_stoic_dir"
   cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-jvmti-agent.so" "$pkg_so"
   cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-server-attached.apk" "$pkg_server_apk"
@@ -134,10 +144,10 @@ attach_jvmti() {
     # Need to fix up SELinux permissions (multi-level security category).
     # Otherwise the app won't be able to write to the fifo.
     full_mls_category_set="$(su 0 ls -Zd "$pkg_dir" | awk '{print $1}')"
-    su 0 chcon "$full_mls_category_set" "$pkg_stoic_dir/server-up.fifo"
+    su 0 chcon -R "$full_mls_category_set" "$pkg_stoic_dir"
   fi
 
-  run_as_compat "$pkg" timeout 20s sh -c ": < $pkg_stoic_dir/server-up.fifo" &
+  run_as_compat "$pkg" timeout 20s sh -c ": < $pkg_stoic_dir/server-up.fifo" 2>/dev/null &
   wait_for_server_up_pid=$!
 
   >&2 echo "wait_for_server_up started in background with PID $wait_for_server_up_pid"
@@ -160,6 +170,15 @@ attach_jvmti() {
   logcat -T 1 --pid "$pkg_pid" "stoic:v *:w" >&2 &
   logcat_pid=$!
 
+  # setsid runs sh in a new session. This way we can kill the entire process group.
+  # We echo the PID of the process group leader, and then read the first line
+  # output and capture that as selinux_denials_pid
+  # `--line-buffered` is needed because grep defaults to non-line-buffered mode
+  # when stdout is not a tty.
+  selinux_denials="$pkg_stoic_dir/selinux_denials"
+  selinux_denials_pgid_file="$pkg_stoic_dir/selinux_denials_pgid"
+  run_as_compat "$pkg" setsid sh -c "printf \"%s\n\" \$\$ > $selinux_denials_pgid_file && logcat -T 1 | grep --line-buffered -E \"avc: denied .*stoic.*permissive=0\" >$selinux_denials" &
+
   # Sometimes attach-agent complains that the process doesn't exist - maybe
   # because it was created to recently? Sleeping fixes it.
   attach_agent_compat "$pkg" "$pkg_so=$pkg_stoic_dir" || attach_agent_exit_code=$?
@@ -176,9 +195,14 @@ attach_jvmti() {
     if ! kill -0 "$wait_for_server_up_pid" 2>/dev/null; then
       wait_for_server_up_exit_status=0
       wait $wait_for_server_up_pid || wait_for_server_up_exit_status=$?
-      >&2 echo "wait_for_server_up exited with $wait_for_server_up_exit_status"
+      attach_error_summary="wait_for_server_up exited with $wait_for_server_up_exit_status"
       wait_for_server_up_pid=""
       exit $wait_for_server_up_exit_status
+    fi
+
+    if run_as_compat "$pkg" sh -c "[ -s $selinux_denials ]"; then
+      attach_error_summary="SELinux problem detected - you may be able to work around it with \`adb shell su 0 setenforce 0\`"
+      exit 1
     fi
 
     # We cannot use `kill -0` on app pids without root, so we use ps to check
@@ -187,7 +211,7 @@ attach_jvmti() {
     # exited - it might be helpful to check the status to see if its a zombie)
     if ! ps -p "$pkg_pid" -o NAME= 2>/dev/null | grep -q "$pkg"; then
       target_process_exited=1
-      >&2 echo "Target process ($pkg_pid) exited"
+      attach_error_summary="Target process ($pkg_pid) exited"
       exit 1
     fi
 
@@ -241,7 +265,7 @@ if ! pm list packages "$pkg" | grep -x "package:$pkg"; then
       pm install "$stoic_device_sync_dir/apk/stoic-demo-app-with-sdk-release.apk"
       ;;
     *)
-      >&2 echo "$pkg not found"
+      attach_error_summary="$pkg not found"
       exit 1
       ;;
   esac
@@ -260,7 +284,7 @@ case "$attach_option" in
     attach_sdk
     ;;
   *)
-    >&2 echo "Invalid attach option '$attach_option'"
+    attach_error_summary="Invalid attach option '$attach_option'"
     exit 1
     ;;
 esac
