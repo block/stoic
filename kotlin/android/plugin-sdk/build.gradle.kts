@@ -1,8 +1,12 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.vanniktech.maven.publish.base)
 }
 
 repositories {
@@ -33,4 +37,10 @@ tasks.register<Jar>("sourcesJar") {
 
 artifacts {
     add("archives", tasks["sourcesJar"])
+}
+
+configure<MavenPublishBaseExtension> {
+  configure(
+    KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true)
+  )
 }
