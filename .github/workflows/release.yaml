@@ -42,7 +42,7 @@ jobs:
             fi
           fi
 
-      - run: ./gradlew publish
+      - run: ./gradlew :android:plugin-sdk:publish
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_CENTRAL_PASSWORD }}
