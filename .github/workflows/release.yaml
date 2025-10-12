@@ -31,9 +31,15 @@ jobs:
           FILE_VERSION=$(cat ../prebuilt/STOIC_VERSION)
           echo "Tag version: $TAG_VERSION"
           echo "File version: $FILE_VERSION"
+
+          # Allow mismatch only if tag is 'main' and file version ends with '-SNAPSHOT'
           if [ "$TAG_VERSION" != "$FILE_VERSION" ]; then
-            echo "❌ Tag ($TAG_VERSION) does not match STOIC_VERSION ($FILE_VERSION)"
-            exit 1
+            if [ "$TAG_VERSION" = "main" ] && [[ "$FILE_VERSION" == *-SNAPSHOT ]]; then
+              echo "✅ Tag is 'main' and file version ends with '-SNAPSHOT'; skipping strict check."
+            else
+              echo "❌ Tag ($TAG_VERSION) does not match STOIC_VERSION ($FILE_VERSION)"
+              exit 1
+            fi
           fi
 
       - run: ./gradlew publish
