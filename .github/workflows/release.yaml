@@ -1,40 +1,22 @@
 name: release
 
 on:
-  workflow_run:
-    workflows: ["build"]
-    types: [completed]
+  push:
+    tags:
+      - 'v*'
 
-  workflow_dispatch:
-
-env:
-  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
+permissions:
+  contents: write
 
 jobs:
-  publish:
-    # Only run this job if the workflow was triggered by a successful upstream build workflow,
-    # or if it was run manually from the Actions UI.
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+  release:
     runs-on: macos-latest
-    permissions:
-      contents: write
-
     defaults:
        run:
          working-directory: kotlin
 
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: stoic-release-tar-gz
-          path: artifacts
-
       - uses: actions/checkout@v5
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: 'zulu'
-          java-version-file: .github/workflows/.java-version
 
       - name: Read version
         id: version
@@ -57,28 +39,47 @@ jobs:
             fi
           fi
 
-      - name: Publish to Maven Central
-        run: ./gradlew :android:plugin-sdk:publish --info
+      - name: Find latest successful build artifact for this commit
+        id: find-build
+        run: |
+          echo "Fetching build for commit $GITHUB_SHA"
+          BUILD_RUN_ID=$(gh run list --workflow build --json headSha,databaseId,status,conclusion \
+            | jq -r '.[] | select(.headSha=="'$GITHUB_SHA'" and .conclusion=="success") | .databaseId' | head -n1)
+          if [ -z "$BUILD_RUN_ID" ]; then
+            echo "No successful 'build' run found for commit $GITHUB_SHA"
+            exit 1
+          fi
+          echo "Using build $BUILD_RUN_ID for commit $GITHUB_SHA"
+          echo "BUILD_RUN_ID=$BUILD_RUN_ID" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download build artifact
+        run: |
+          gh run download ${{ steps.find-build.outputs.BUILD_RUN_ID }} -n stoic-release-tar-gz -D artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.java-version
+
+      - name: Extract plugin-sdk JAR from tarball
+        run: |
+          tar -xzf artifacts/stoic-release-tar-gz/stoic-release.tar.gz sdk/stoic-android-plugin-sdk.jar
+
+      - name: Publish verified JAR to Maven Central
+        run: |
+          ./gradlew :android:plugin-sdk:publish \
+            -PartifactFile=$(pwd)/sdk/stoic-android-plugin-sdk.jar \
+            --info
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SECRET_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SECRET_PASSPHRASE }}
-
-      - name: Verify JAR inside tarball matches published JAR
-        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
-        run: |
-          echo "🧩 Extracting jar from stoic-release.tar.gz..."
-          tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-android-plugin-sdk.jar
-
-          echo "🧩 Computing checksums..."
-          shasum -a 256 sdk/stoic-android-plugin-sdk.jar > extracted.sha256
-          shasum -a 256 kotlin/android/plugin-sdk/build/libs/*.jar > published.sha256
-
-          echo "Comparing checksums:"
-          cat extracted.sha256
-          cat published.sha256
-          diff -q extracted.sha256 published.sha256 && echo "✅ Matching JARs" || (echo "❌ Mismatch!" && exit 1)
 
       - name: Create GitHub release
         if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
