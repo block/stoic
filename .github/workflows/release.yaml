@@ -1,25 +1,36 @@
 name: release
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - '**'
+  workflow_run:
+    workflows: ["build"]
+    types: [completed]
+
+  workflow_dispatch:
 
 env:
   GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
 
 jobs:
   publish:
+    # Only run this job if the workflow was triggered by a successful upstream build workflow,
+    # or if it was run manually from the Actions UI.
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: macos-latest
     permissions:
       contents: write
+
     defaults:
        run:
          working-directory: kotlin
+
     steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: stoic-release-tar-gz
+          path: artifacts
+
       - uses: actions/checkout@v5
+
       - uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
@@ -46,15 +57,35 @@ jobs:
             fi
           fi
 
-      - run: ./gradlew :android:plugin-sdk:publish --info
+      - name: Publish to Maven Central
+        run: ./gradlew :android:plugin-sdk:publish --info
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SECRET_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SECRET_PASSPHRASE }}
 
+      - name: Verify JAR inside tarball matches published JAR
+        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
+        run: |
+          echo "🧩 Extracting jar from stoic-release.tar.gz..."
+          tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-android-plugin-sdk.jar
+
+          echo "🧩 Computing checksums..."
+          shasum -a 256 sdk/stoic-android-plugin-sdk.jar > extracted.sha256
+          shasum -a 256 kotlin/android/plugin-sdk/build/libs/*.jar > published.sha256
+
+          echo "Comparing checksums:"
+          cat extracted.sha256
+          cat published.sha256
+          diff -q extracted.sha256 published.sha256 && echo "✅ Matching JARs" || (echo "❌ Mismatch!" && exit 1)
+
       - name: Create GitHub release
         if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
-        run: gh release create ${{ github.ref_name }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            artifacts/stoic-release.tar.gz \
+            --title "Stoic Release ${{ steps.version.outputs.version }}" \
+            --notes "Release bundle including Maven-published JAR and other artifacts."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

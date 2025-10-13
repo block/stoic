@@ -1,9 +1,14 @@
 # .github/workflows/build.yml
-name: Build (Stoic)
+
+# Note: Kicking off a build will automatically initiate release
+name: build
 on:
   workflow_dispatch:
   push:
-    branches: ["tomm/github-actions"]  # adjust as needed
+    branches:
+      - main
+    tags:
+      - '**'
 
 jobs:
   build:
