@@ -27,12 +27,6 @@ fun main(args: Array<String>) {
   val postReleaseVersion = incrementSemver(releaseVersion)
   require(versionCodeFromVersionName(postReleaseVersion) == versionCodeFromVersionName(releaseVersion) + 9)
 
-  val releaseTar = releasesDir.resolve("stoic-$releaseVersion.tar.gz")
-  if (releaseTar.exists()) {
-    System.err.println("\n$releaseTar already exists - aborting\n")
-    exitProcess(1)
-  }
-
   ensureCleanGitRepo(stoicDir)
 
   println("Removing $stoicDir/out to ensure clean build...")
@@ -48,19 +42,6 @@ fun main(args: Array<String>) {
       ).inheritIO().start().waitFor() == 0
     )
     println("... test/clean-build-and-regression-check.sh completed successfully.")
-
-    println("preparing tar archive...")
-    check(
-      ProcessBuilder(
-        "tar",
-        "--create",
-        "--gzip",
-        "--file=${releaseTar.absolutePath}",
-        "--directory=${outRelDir.absolutePath}",
-        "."
-      ).inheritIO().start().waitFor() == 0
-    )
-    println("... done preparing tar archive.")
   } catch (e: Throwable) {
     println("Restoring ${versionFile.absolutePath} to $currentVersion due to failure")
     versionFile.writeText("$currentVersion\n")
@@ -70,13 +51,6 @@ fun main(args: Array<String>) {
   println("Updating ${versionFile.absolutePath} to $postReleaseVersion")
   versionFile.writeText("$postReleaseVersion\n")
 
-  val sha256sum = ProcessBuilder("sha256sum", releaseTar.absolutePath)
-    .inheritIO()
-    .redirectOutput(Redirect.PIPE)
-    .start()
-    .also { check(it.waitFor() == 0) }
-    .inputReader().readText().trim()
-
   val releaseTag = "v$releaseVersion"
   println(
     """
@@ -85,7 +59,6 @@ fun main(args: Array<String>) {
       
       Release version: $releaseVersion
       Release tag: $releaseTag
-      Release prepared successfully: $releaseTar
       Version incremented to: $postReleaseVersion
       
       
@@ -95,19 +68,16 @@ fun main(args: Array<String>) {
       cd $stoicDir
       
       # tag the release and push it
+      # (this will trigger a github action to perform the actual release)
       git tag $releaseTag && git push origin $releaseTag
       
       # Commit the version bump and push it
       git add prebuilt/STOIC_VERSION && git commit -m "$postReleaseVersion version bump" && git push
       
-      # Upload the release to Github
-      gh release create $releaseTag $releaseTar --title $releaseTag
-      
       # Update the release in https://github.com/block/homebrew-tap
-      # The sha256sum for this release is $sha256sum
       # The URL should be:
       # https://github.com/block/stoic/releases/download/v$releaseVersion/stoic-$releaseVersion.tar.gz
-      # (verify that after uploading to github)
+      # (verify that after pushing the tag and waiting for Github Actions to complete)
       
       
     """.trimIndent()
