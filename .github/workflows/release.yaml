@@ -25,10 +25,14 @@ jobs:
           distribution: 'zulu'
           java-version-file: .github/workflows/.java-version
 
+      - name: Read version
+        id: version
+        run: echo "version=$(cat ../prebuilt/STOIC_VERSION)" >> $GITHUB_OUTPUT
+
       - name: Verify tag matches STOIC_VERSION
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          FILE_VERSION=$(cat ../prebuilt/STOIC_VERSION)
+          FILE_VERSION="${{ steps.version.outputs.version }}"
           echo "Tag version: $TAG_VERSION"
           echo "File version: $FILE_VERSION"
 
@@ -50,6 +54,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SECRET_PASSPHRASE }}
 
       - name: Create GitHub release
+        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
         run: gh release create ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

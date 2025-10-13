@@ -1,3 +1,6 @@
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
@@ -43,4 +46,21 @@ configure<MavenPublishBaseExtension> {
   configure(
     KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true)
   )
+}
+
+tasks.register("printPublishingInfo") {
+    doLast {
+        // Print publication coordinates
+        publishing.publications.withType<MavenPublication>().forEach { pub ->
+            println("Publication: ${pub.name}")
+            println("  groupId:    ${pub.groupId}")
+            println("  artifactId: ${pub.artifactId}")
+            println("  version:    ${pub.version}")
+        }
+
+        // Print repository names and URLs
+        publishing.repositories.withType(MavenArtifactRepository::class.java).forEach { repo ->
+            println("Repository: ${repo.name} -> ${repo.url}")
+        }
+    }
 }
