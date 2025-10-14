@@ -52,6 +52,8 @@ fun main(args: Array<String>) {
       println("Running step: $name")
       action()
       markStep(name)
+    } else {
+      println("Skipping already completed step: $name")
     }
   }
 
@@ -81,12 +83,10 @@ fun main(args: Array<String>) {
   val commitSha = getHeadSha(stoicDir)
   step("wait-build") {
     println("Waiting for GitHub Actions build workflow to complete...")
-    waitForWorkflow("build", stoicDir, commitSha)
-  }
+    val runId = waitForWorkflow("build", stoicDir, commitSha)
 
-  step("download-artifact") {
     println("Downloading build artifact...")
-    check(runCommand(listOf("gh", "run", "download", "--repo", "block/stoic", "--workflow", "build",
+    check(runCommand(listOf("gh", "run", "download", runId, "--repo", "block/stoic",
       "-n", "stoic-release-tar-gz", "-D", artifactsDir.absolutePath), stoicDir))
   }
 
@@ -196,7 +196,7 @@ fun waitForWorkflow(
   repoDir: File,
   commitSha: String,
   timeoutMinutes: Int = 40
-) {
+): String {
   val repo = runCommandOutput(
     listOf("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"),
     repoDir
@@ -235,7 +235,7 @@ fun waitForWorkflow(
       when {
         status == "completed" && conclusion == "success" -> {
           println("Workflow '$workflow' succeeded for commit $commitSha.")
-          return
+          return runId
         }
         status == "completed" && conclusion in listOf("failure", "cancelled", "timed_out") -> {
           System.err.println("❌ Workflow '$workflow' failed for commit $commitSha (conclusion=$conclusion).")
@@ -264,7 +264,6 @@ private val stepOrder = listOf(
   "shellcheck",
   "create-branch",
   "wait-build",
-  "download-artifact",
   "extract",
   "verify-tests",
   "tag-release",
