@@ -1,9 +1,3 @@
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.artifacts.repositories.MavenArtifactRepository
-
-import com.vanniktech.maven.publish.JavadocJar
-import com.vanniktech.maven.publish.KotlinJvm
-import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -31,13 +25,4 @@ tasks.withType<KotlinCompile> {
     kotlinOptions {
         jvmTarget = "17"
     }
-}
-
-tasks.register<Jar>("sourcesJar") {
-    from(sourceSets["main"].allSource)
-    archiveClassifier.set("sources")
-}
-
-artifacts {
-    add("archives", tasks["sourcesJar"])
 }

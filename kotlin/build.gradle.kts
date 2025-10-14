@@ -1,3 +1,7 @@
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import java.io.ByteArrayOutputStream
 import java.net.URI
@@ -94,12 +98,19 @@ allprojects {
       }
     }
     configure<MavenPublishBaseExtension> {
+      configure(
+        KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true)
+      )
+
       publishToMavenCentral(automaticRelease = true)
+
       signAllPublications()
+
       pom {
         description.set("Run code within any debuggable Android process, without modifying its APK")
         name.set(project.name)
         url.set("https://github.com/block/stoic/")
+
         licenses {
           license {
             name.set("The Apache Software License, Version 2.0")
@@ -107,12 +118,14 @@ allprojects {
             distribution.set("repo")
           }
         }
+
         developers {
           developer {
             id.set("block")
             name.set("Block")
           }
         }
+
         scm {
           url.set("https://github.com/block/stoic/")
           connection.set("scm:git:https://github.com/block/stoic.git")
@@ -120,22 +133,28 @@ allprojects {
         }
       }
     }
-
     tasks.register("printPublishingInfo") {
-        doLast {
-            // Print publication coordinates
-            publishing.publications.withType<MavenPublication>().forEach { pub ->
-                println("Publication: ${pub.name}")
-                println("  groupId:    ${pub.groupId}")
-                println("  artifactId: ${pub.artifactId}")
-                println("  version:    ${pub.version}")
-            }
-
-            // Print repository names and URLs
-            publishing.repositories.withType(MavenArtifactRepository::class.java).forEach { repo ->
-                println("Repository: ${repo.name} -> ${repo.url}")
-            }
+      doLast {
+        val publishing = project.extensions.findByType(
+          org.gradle.api.publish.PublishingExtension::class.java
+        ) ?: run {
+          println("No publishing extension for ${project.path}")
+          return@doLast
         }
+
+        // Print publication coordinates
+        publishing.publications.withType<MavenPublication>().forEach { pub ->
+            println("Publication: ${pub.name}")
+            println("  groupId:    ${pub.groupId}")
+            println("  artifactId: ${pub.artifactId}")
+            println("  version:    ${pub.version}")
+        }
+
+        // Print repository names and URLs
+        publishing.repositories.withType(MavenArtifactRepository::class.java).forEach { repo ->
+            println("Repository: ${repo.name} -> ${repo.url}")
+        }
+      }
     }
   }
 }
