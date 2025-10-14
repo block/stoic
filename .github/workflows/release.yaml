@@ -70,6 +70,10 @@ jobs:
         run: |
           tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-android-plugin-sdk.jar
 
+      - name: Print publishing info
+        run: |
+          ./gradlew :android:plugin-sdk:printPublishingInfo
+
       - name: Publish verified JAR to Maven Central
         run: |
           ./gradlew :android:plugin-sdk:publish \
