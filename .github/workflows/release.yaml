@@ -68,7 +68,7 @@ jobs:
 
       - name: Extract plugin-sdk JAR from tarball
         run: |
-          tar -xzf artifacts/stoic-release-tar-gz/stoic-release.tar.gz sdk/stoic-android-plugin-sdk.jar
+          tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-android-plugin-sdk.jar
 
       - name: Publish verified JAR to Maven Central
         run: |
