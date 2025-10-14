@@ -102,7 +102,7 @@ fun main(args: Array<String>) {
     extractedDir.mkdirs()
     println("Extracting artifact to $extractedDir...")
     check(runCommand(listOf("tar", "-xzf",
-      "${artifactsDir.resolve("stoic-release-tar-gz/stoic-release.tar.gz")}",
+      "${artifactsDir.resolve("stoic-release.tar.gz")}",
       "-C", extractedDir.absolutePath, "--strip-components", "1"), stoicDir))
   }
 
