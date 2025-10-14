@@ -246,7 +246,7 @@ fun waitForWorkflow(
         }
         status == "completed" && conclusion in listOf("failure", "cancelled", "timed_out") -> {
           System.err.println("❌ Workflow '$workflow' failed for commit $commitSha (conclusion=$conclusion).")
-          println("See: https://github.com/$repo/actions/runs/$runId")
+          println("See: $runUrl")
           exitProcess(1)
         }
       }
@@ -254,7 +254,7 @@ fun waitForWorkflow(
 
     if (System.currentTimeMillis() > deadline) {
       System.err.println("❌ Timeout waiting for workflow '$workflow' to complete for commit $commitSha.")
-      runId?.let { println("See: https://github.com/$repo/actions/runs/$it") }
+      runUrl?.let { println("See: $it") }
       exitProcess(1)
     }
 
