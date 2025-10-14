@@ -11,7 +11,6 @@ fun main(args: Array<String>) {
   }
 
   val stoicDir = File(File(args[0]).absolutePath)
-  println("stoicDir: $stoicDir")
 
   val versionFile = stoicDir.resolve("prebuilt/STOIC_VERSION")
   val currentVersion = versionFile.readText().trim()
@@ -29,6 +28,11 @@ fun main(args: Array<String>) {
 
     If the release branch has already been created, you can delete it with:
     % git checkout main && git branch -D release/$releaseVersion && git push origin --delete release/$releaseVersion
+
+    If the tag has already been created, you can delete it with:
+    % git tag -d v$releaseVersion && git push origin --delete v$releaseVersion
+
+
   """.trimIndent())
 
   ensureCleanGitRepo(stoicDir)
