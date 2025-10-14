@@ -18,15 +18,22 @@ fun main(args: Array<String>) {
   validateSemver(currentVersion)
 
   val releaseVersion = currentVersion.removeSuffix("-SNAPSHOT")
-  require(versionCodeFromVersionName(releaseVersion) == versionCodeFromVersionName(currentVersion) + 1)
+  validateSemver(releaseVersion)
 
   val postReleaseVersion = incrementSemver(releaseVersion)
-  require(versionCodeFromVersionName(postReleaseVersion) == versionCodeFromVersionName(releaseVersion) + 9)
+  validateSemver(postReleaseVersion)
+
+  println("""
+    If you want to abandon the release, you can delete the artifacts directory with:
+    % rm -r releases/$releaseVersion
+
+    If the release branch has already been created, you can delete it with:
+    % git checkout main && git branch -D release/$releaseVersion && git push origin --delete release/$releaseVersion
+  """.trimIndent())
 
   ensureCleanGitRepo(stoicDir)
   val artifactsDir = stoicDir.resolve("releases/$releaseVersion")
 
-  // Clean up any previous attempt
   if (artifactsDir.exists()) {
     println("Resuming from previous attempt: $artifactsDir")
   } else {
@@ -36,41 +43,41 @@ fun main(args: Array<String>) {
 
   // state tracking
   val stateFile = artifactsDir.resolve(".prepare_state")
-  fun markStep(step: String) {
+  fun markStep(step: Step) {
     println("Completed: $step")
-    stateFile.writeText(step)
+    stateFile.writeText(step.name)
   }
-  fun lastStep(): String? = if (stateFile.exists()) stateFile.readText().trim() else null
-  fun shouldRun(step: String): Boolean {
+  fun lastStep(): Step? = if (stateFile.exists()) Step.valueOf(stateFile.readText().trim()) else null
+  fun shouldRun(step: Step): Boolean {
     val done = lastStep()
-    require(stepOrder.indexOf(step) != -1)
-    require(done == null ||stepOrder.indexOf(done) != -1)
-    return done == null || stepOrder.indexOf(step) > stepOrder.indexOf(done)
+    return done == null || step.ordinal > done.ordinal
   }
-  fun step(name: String, action: () -> Unit) {
-    if (shouldRun(name)) {
-      println("Running step: $name")
+  fun step(step: Step, action: () -> Unit) {
+    if (shouldRun(step)) {
+      println("Running step: ${step.name}")
       action()
-      markStep(name)
+      markStep(step)
     } else {
-      println("Skipping already completed step: $name")
+      println("Skipping already completed step: ${step.name}")
     }
   }
 
   lastStep()?.let { println("Resuming from step: $it") }
 
-  step("shellcheck") {
+  step(Step.SHELLCHECK) {
     check(runCommand(listOf("test/shellcheck.sh"), stoicDir))
   }
 
   val releaseBranch = "release/$releaseVersion"
-  step("create-branch") {
+  step(Step.CREATE_BRANCH) {
     val branch = runCommandOutput(listOf("git", "rev-parse", "--abbrev-ref", "HEAD"), stoicDir).trim()
     require(branch == "main") { "Must run from main branch (currently on '$branch')" }
 
     require(currentVersion.endsWith("-SNAPSHOT")) {
       "Current version must end in -SNAPSHOT (was '$currentVersion')"
     }
+    require(versionCodeFromVersionName(releaseVersion) == versionCodeFromVersionName(currentVersion) + 1)
+    require(versionCodeFromVersionName(postReleaseVersion) == versionCodeFromVersionName(releaseVersion) + 9)
 
     println("Creating release branch: $releaseBranch")
     check(runCommand(listOf("git", "checkout", "-b", releaseBranch), stoicDir))
@@ -81,7 +88,7 @@ fun main(args: Array<String>) {
   }
 
   val commitSha = getHeadSha(stoicDir)
-  step("wait-build") {
+  step(Step.WAIT_BUILD) {
     println("Waiting for GitHub Actions build workflow to complete...")
     val runId = waitForWorkflow("build", stoicDir, commitSha)
 
@@ -91,7 +98,7 @@ fun main(args: Array<String>) {
   }
 
   val extractedDir = artifactsDir.resolve("verify")
-  step("extract") {
+  step(Step.EXTRACT) {
     extractedDir.mkdirs()
     println("Extracting artifact to $extractedDir...")
     check(runCommand(listOf("tar", "-xzf",
@@ -103,7 +110,7 @@ fun main(args: Array<String>) {
   val newPath = "$binPath:${System.getenv("PATH")}"
   val env = mapOf("PATH" to newPath)
 
-  step("verify-tests") {
+  step(Step.VERIFY_TESTS) {
     println("Running extended tests with verified artifact...")
     check(runCommand(listOf("test/test-demo-app-without-sdk.sh"), stoicDir, env))
     check(runCommand(listOf("test/test-plugin-new.sh"), stoicDir, env))
@@ -112,24 +119,24 @@ fun main(args: Array<String>) {
   }
 
   val releaseTag = "v$releaseVersion"
-  step("tag-release") {
+  step(Step.TAG_RELEASE) {
     println("Tagging release as $releaseTag")
     check(runCommand(listOf("git", "tag", "-a", releaseTag, "-m", "Release $releaseVersion"), stoicDir))
     check(runCommand(listOf("git", "push", "origin", releaseTag), stoicDir))
   }
 
-  step("wait-release") {
+  step(Step.WAIT_RELEASE) {
     println("Waiting for GitHub Actions release workflow to complete...")
     waitForWorkflow("release", stoicDir, commitSha)
   }
 
-  step("merge-main") {
+  step(Step.MERGE_MAIN) {
     println("Merging release branch into main...")
     check(runCommand(listOf("git", "checkout", "main"), stoicDir))
     check(runCommand(listOf("git", "merge", "--ff-only", releaseBranch), stoicDir))
   }
 
-  step("bump-snapshot") {
+  step(Step.BUMP_SNAPSHOT) {
     println("Bumping version to post-release: $postReleaseVersion")
     versionFile.writeText("$postReleaseVersion\n")
     check(runCommand(listOf("git", "add", versionFile.path), stoicDir))
@@ -137,8 +144,6 @@ fun main(args: Array<String>) {
     check(runCommand(listOf("git", "push", "origin", "main"), stoicDir))
     println("Release $releaseVersion completed successfully!")
   }
-
-  println("Done")
 }
 
 /** Validate version string pattern. */
@@ -226,11 +231,13 @@ fun waitForWorkflow(
       repoDir
     ).lines().firstOrNull { it.isNotBlank() }
 
+    var runUrl: String? = null
     if (line != null) {
       val parts = line.trim().split(Regex("\\s+"))
       runId = parts[0]
       val status = parts.getOrNull(1)
       val conclusion = parts.getOrNull(2)
+      runUrl = "https://github.com/$repo/actions/runs/$runId"
 
       when {
         status == "completed" && conclusion == "success" -> {
@@ -251,7 +258,8 @@ fun waitForWorkflow(
       exitProcess(1)
     }
 
-    println("⏳ Waiting for '$workflow' on commit $commitSha...")
+    println("Waiting for '$workflow' on commit $commitSha...")
+    runUrl?.let { println("See: $it") }
     Thread.sleep(30_000)
   }
 }
@@ -260,14 +268,14 @@ fun getHeadSha(repoDir: File): String =
   runCommandOutput(listOf("git", "rev-parse", "HEAD"), repoDir).trim()
 
 // Order of steps for resume logic
-private val stepOrder = listOf(
-  "shellcheck",
-  "create-branch",
-  "wait-build",
-  "extract",
-  "verify-tests",
-  "tag-release",
-  "wait-release",
-  "merge-main",
-  "bump-snapshot"
-)
+private enum class Step {
+  SHELLCHECK,
+  CREATE_BRANCH,
+  WAIT_BUILD,
+  EXTRACT,
+  VERIFY_TESTS,
+  TAG_RELEASE,
+  WAIT_RELEASE,
+  MERGE_MAIN,
+  BUMP_SNAPSHOT
+}
