@@ -71,7 +71,8 @@ fun main(args: Array<String>) {
   val releaseBranch = "release/$releaseVersion"
   step(Step.CREATE_BRANCH) {
     val branch = runCommandOutput(listOf("git", "rev-parse", "--abbrev-ref", "HEAD"), stoicDir).trim()
-    require(branch == "main") { "Must run from main branch (currently on '$branch')" }
+    val normalized = branch.removePrefix("refs/").removePrefix("heads/").removePrefix("origin/")
+    require(normalized == "main") { "Must run from main branch (currently on '$normalized')" }
 
     require(currentVersion.endsWith("-SNAPSHOT")) {
       "Current version must end in -SNAPSHOT (was '$currentVersion')"
