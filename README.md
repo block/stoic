@@ -17,13 +17,18 @@
 
 ## Introduction
 
-Stoic lets you look within your Android processes, giving you the courage to
-take on difficult bugs.
+Stoic provides a communication channel from your laptop inside an app process.
+It lets you look within your Android processes, understand their behavior, and
+solve difficult problems.
 
-Stoic is a tool for
-1. running code inside another process - without any modifications to its APK,
-2. exposing extra capabilities to code, normally only available to a debugger, and
-3. blurring the lines between code and debugger
+Stoic establishes its communication channel in one of two ways:
+1. On debuggable APKs, Stoic can leverage debug APIs to establish a channel
+   without any modifications to the APK
+2. You can compile the Stoic plugin SDK into a non-debuggable APK, export a
+   ContentProvider, and Stoic will use that to establish a channel.
+
+If the debug API method is used, then your plugin will have access to extra
+capabilities - normally only available to a debugger.
 
 You can write plugins that
 1. provide command-line access to APIs normally only available inside the process
@@ -33,7 +38,6 @@ You can write plugins that
 Stoic is fast. The first time you run a Stoic plugin in a process it will take 2-3
 seconds to attach. Thereafter, Stoic plugins typically run in less than a second.
 
-
 ## Getting started
 
 1. Install with [Homebrew](https://brew.sh/): `brew install block/tap/stoic`
@@ -41,9 +45,15 @@ seconds to attach. Thereafter, Stoic plugins typically run in less than a second
 3. When you don't specify a package, Stoic injects itself into `com.squareup.stoic.demoapp.withoutsdk`
    by default - a simple app bundled with Stoic. Run `stoic --pkg <your-app> helloworld` to inject into your
    own app instead.
-4. Create a new plugin: `stoic plugin --new scratch`
-5. Run your plugin with: `stoic scratch`
-6. Open up `~/.config/stoic/plugin/scratch` with Android Studio to modify this plugin and explore what Stoic can do.
+
+You can create your own plugins:
+1. Create a new plugin: `stoic plugin --new scratch`
+2. Run your plugin with: `stoic scratch`
+3. Open up `~/.config/stoic/plugin/scratch` with Android Studio to modify this plugin and explore what Stoic can do.
+
+Sometimes it's more convenient to build a plugin into your app. That way you
+can call your own APIs directly, without needing reflection. You can do that
+with the [plugin sdk](https://mvnrepository.com/artifact/com.squareup.stoic/plugin-sdk).
 
 Stoic works on any API 26+ Android device / emulator, with any debuggable app (that I've tested so far).
 
