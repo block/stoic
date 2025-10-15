@@ -34,16 +34,13 @@ val prebuiltDir = rootProject.file("prebuilt")
 val versionFile = prebuiltDir.resolve("STOIC_VERSION")
 val versionName = versionFile.readText().trim()
 
-val stoicProps = Properties().apply {
-    prebuiltDir.resolve("stoic.properties").reader().use { load(it) }
-}
+// Read Android SDK configuration from gradle.properties
+val androidMinSdk = providers.gradleProperty("android.minSdk").get()
+val androidCompileSdk = providers.gradleProperty("android.compileSdk").get()
+val androidTargetSdk = providers.gradleProperty("android.targetSdk").get()
+val androidBuildToolsVersion = providers.gradleProperty("android.buildToolsVersion").get()
 
-val androidMinSdk = stoicProps.getProperty("android_min_sdk") ?: error("Missing android_min_sdk")
-val androidCompileSdk = stoicProps.getProperty("android_compile_sdk") ?: error("Missing android_compile_sdk")
-val androidTargetSdk = stoicProps.getProperty("android_target_sdk") ?: error("Missing android_target_sdk")
-val androidBuildToolsVersion = stoicProps.getProperty("android_build_tools_version") ?: error("Missing android_build_tools_version")
-
-// Needed for :bridge, since it needs it during configuration phase
+// Needed for :generated-bridge, since it needs it during configuration phase
 extra["stoic.version_name"] = versionName
 
 allprojects {

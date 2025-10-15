@@ -25,7 +25,10 @@ else
     stoic_dir="$(cd "$(dirname "$0")" && pwd)"
 fi
 
-source "$stoic_dir/prebuilt/stoic.properties"
+# Read Android SDK versions from gradle.properties
+android_build_tools_version=$(grep "^android.buildToolsVersion=" "$stoic_dir/gradle.properties" | cut -d'=' -f2)
+android_target_sdk=$(grep "^android.targetSdk=" "$stoic_dir/gradle.properties" | cut -d'=' -f2)
+android_ndk_version=$(grep "^android.ndkVersion=" "$stoic_dir/gradle.properties" | cut -d'=' -f2)
 
 # AUTO_YES can be set by the calling script or passed as --yes argument
 # Default to 0 if not set

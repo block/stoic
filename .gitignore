@@ -1,6 +1,5 @@
 /releases/
 
-out/
 build/
 .claude/
 .gradle/

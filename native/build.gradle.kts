@@ -6,12 +6,8 @@ val distributionsDir = rootProject.layout.buildDirectory.dir("distributions").ge
 val syncDir = distributionsDir.resolve("sync")
 val targetSo = syncDir.resolve("stoic/stoic-jvmti-agent.so")
 
-// Read android_ndk_version from stoic.properties
-val stoicProps = java.util.Properties().apply {
-    stoicDir.resolve("prebuilt/stoic.properties").reader().use { load(it) }
-}
-val androidNdkVersion = stoicProps.getProperty("android_ndk_version")
-    ?: error("Missing android_ndk_version in stoic.properties")
+// Read android_ndk_version from gradle.properties
+val androidNdkVersion = rootProject.providers.gradleProperty("android.ndkVersion").get()
 
 val androidHome = System.getenv("ANDROID_HOME")
     ?: error("ANDROID_HOME environment variable not set")

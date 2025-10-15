@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.kotlin.jvm)
 }
@@ -8,15 +6,11 @@ plugins {
 // bridge. i.e. Normal code never directly depends on generated code. Instead it depends on the
 // bridge "interface", which in turn delegates to the generated code.
 
-val prebuiltDir = rootProject.file("prebuilt")
-val stoicProps = Properties().apply {
-    prebuiltDir.resolve("stoic.properties").reader().use { load(it) }
-}
-
-val androidMinSdk = stoicProps.getProperty("android_min_sdk") ?: error("Missing android_min_sdk")
-val androidCompileSdk = stoicProps.getProperty("android_compile_sdk") ?: error("Missing android_compile_sdk")
-val androidTargetSdk = stoicProps.getProperty("android_target_sdk") ?: error("Missing android_target_sdk")
-val androidBuildToolsVersion = stoicProps.getProperty("android_build_tools_version") ?: error("Missing android_build_tools_version")
+// Read Android SDK configuration from gradle.properties
+val androidMinSdk = providers.gradleProperty("android.minSdk").get()
+val androidCompileSdk = providers.gradleProperty("android.compileSdk").get()
+val androidTargetSdk = providers.gradleProperty("android.targetSdk").get()
+val androidBuildToolsVersion = providers.gradleProperty("android.buildToolsVersion").get()
 
 val stoicGeneratedSourceDir = layout.buildDirectory.dir("generated/stoic")
 val generateCode by tasks.registering {

@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":bridge"))
+    implementation(project(":generated-bridge"))
     implementation(kotlin("stdlib"))
     implementation(libs.kotlinx.serialization.json)
 }
