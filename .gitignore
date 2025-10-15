@@ -2,6 +2,7 @@
 
 out/
 build/
+.claude/
 .gradle/
 .kotlin/
 local.properties

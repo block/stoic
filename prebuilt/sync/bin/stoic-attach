@@ -120,7 +120,7 @@ attach_jvmti() {
   pkg_dir="$(run_as_compat "$pkg" printenv HOME)"
   pkg_stoic_dir="$pkg_dir/stoic"
   pkg_so="$pkg_stoic_dir/stoic-jvmti-agent.so"
-  pkg_server_apk="$pkg_stoic_dir/stoic-server-attached.apk"
+  pkg_server_apk="$pkg_stoic_dir/stoic-runtime-attached.apk"
   pkg_options_json="$pkg_stoic_dir/options.json"
   attach_error_summary=""
 
@@ -135,7 +135,7 @@ attach_jvmti() {
 
   run_as_compat "$pkg" mkdir "$pkg_stoic_dir"
   cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-jvmti-agent.so" "$pkg_so"
-  cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-server-attached.apk" "$pkg_server_apk"
+  cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-runtime-attached.apk" "$pkg_server_apk"
   echo "{\"stoicProtocolVersion\":$stoic_protocol_version, \"attachedVia\":\"$attach_option\"}" | cross_uid_cp 444 - "$pkg_options_json"
 
   run_as_compat "$pkg" mkfifo "$pkg_stoic_dir/server-up.fifo"

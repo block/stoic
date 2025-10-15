@@ -801,7 +801,7 @@ static void AgentMain(jvmtiEnv* jvmti, JNIEnv* jni, [[maybe_unused]] void* arg) 
   // Setup args that we need for our ClassLoader
   //
 
-  std::string stoicApkChars = std::string(stoicDir.c_str()) + std::string("/stoic-server-attached.apk");
+  std::string stoicApkChars = std::string(stoicDir.c_str()) + std::string("/stoic-runtime-attached.apk");
   LOG(DEBUG) << "stoicApkChars: " << stoicApkChars.c_str();
 
   std::string dexOutputDirChars = std::string(stoicDir.c_str()) + std::string("/dexout");
@@ -815,7 +815,7 @@ static void AgentMain(jvmtiEnv* jvmti, JNIEnv* jni, [[maybe_unused]] void* arg) 
 
 
   //
-  // Construct a new ClassLoader for stoic-server-attached.apk
+  // Construct a new ClassLoader for stoic-runtime-attached.apk
   //
 
   ScopedLocalRef<jclass> klass_DexClassLoader(jni, jni->FindClass("dalvik/system/DexClassLoader"));
@@ -993,7 +993,7 @@ static void AgentMain(jvmtiEnv* jvmti, JNIEnv* jni, [[maybe_unused]] void* arg) 
   //
 
   ScopedLocalRef<jstring> androidServerMainClassName(jni, jni->NewStringUTF(
-      "com.squareup.stoic.android.server.AndroidServerJarKt"));
+      "com.squareup.stoic.target.runtime.AndroidServerJarKt"));
   CHECK(androidServerMainClassName.get() != nullptr);
 
   ScopedLocalRef<jclass> klass_AndroidServerJarKt(jni, (jclass) jni->CallObjectMethod(

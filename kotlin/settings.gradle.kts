@@ -15,11 +15,11 @@ dependencyResolutionManagement {
   }
 }
 
-include("android:common")
-include("android:server:core")
-include("android:server:attached")
-include("android:server:sdk")
-include("android:plugin-sdk")
+include("target:common")
+include("target:runtime:core")
+include("target:runtime:attached")
+include("target:runtime:sdk")
+include("target:plugin-sdk")
 include("bridge")
 include("common")
 include("demo-app:without-sdk")

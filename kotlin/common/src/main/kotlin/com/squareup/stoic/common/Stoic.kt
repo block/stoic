@@ -260,12 +260,12 @@ fun List<*>.toKotlinListRepr(): String {
 const val SOCKET_PREFIX = "/stoic"
 const val SERVER_SUFFIX = "server"
 
-// Socket name (in abstract namespace) for clients to connect to the server
+// Socket name (in abstract namespace) for host to connect to the server
 fun serverSocketName(pkg: String): String {
   return "$SOCKET_PREFIX/$pkg/$SERVER_SUFFIX"
 }
 
-// Socket name (in abstract namespace) for server to connect to client (to tell it that its up)
+// Socket name (in abstract namespace) for server to connect to host (to tell it that it's up)
 fun waitFifo(pkgStoicDir: File): File {
   // Needs to match the name in stoic-attach
   return pkgStoicDir.resolve("server-up.fifo")

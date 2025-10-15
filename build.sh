@@ -160,8 +160,8 @@ setup_graalvm
 ./gradlew --parallel \
   :host:main:assemble \
   :host:main:nativeCompile \
-  :android:plugin-sdk:assemble \
-  :android:server:attached:apk \
+  :target:plugin-sdk:assemble \
+  :target:runtime:attached:apk \
   :demo-plugin:helloworld:apk \
   :demo-plugin:appexitinfo:apk \
   :demo-plugin:breakpoint:apk \
@@ -172,9 +172,9 @@ setup_graalvm
 
 cp "host/main/build/libs/main-$stoic_version.jar" "$stoic_release_dir"/jar/stoic-host-main.jar
 cp host/main/build/native/nativeCompile/stoic "$stoic_release_dir"/bin/darwin-arm64/
-cp "android/plugin-sdk/build/libs/plugin-sdk-$stoic_version.jar" "$stoic_release_dir"/sdk/stoic-android-plugin-sdk.jar
-cp "android/plugin-sdk/build/libs/plugin-sdk-$stoic_version-sources.jar" "$stoic_release_dir"/sdk/stoic-android-plugin-sdk-sources.jar
-cp "android/server/attached/build/libs/attached-$stoic_version.apk" "$stoic_core_sync_dir/stoic/stoic-server-attached.apk"
+cp "target/plugin-sdk/build/libs/plugin-sdk-$stoic_version.jar" "$stoic_release_dir"/sdk/stoic-plugin-sdk.jar
+cp "target/plugin-sdk/build/libs/plugin-sdk-$stoic_version-sources.jar" "$stoic_release_dir"/sdk/stoic-plugin-sdk-sources.jar
+cp "target/runtime/attached/build/libs/attached-$stoic_version.apk" "$stoic_core_sync_dir/stoic/stoic-runtime-attached.apk"
 cp demo-app/without-sdk/build/outputs/apk/debug/without-sdk-debug.apk "$stoic_core_sync_dir/apk/stoic-demo-app-without-sdk-debug.apk"
 cp demo-app/with-sdk/build/outputs/apk/release/with-sdk-release.apk "$stoic_core_sync_dir/apk/stoic-demo-app-with-sdk-release.apk"
 

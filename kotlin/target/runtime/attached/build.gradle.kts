@@ -5,27 +5,29 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+repositories {
+    mavenCentral()
+}
+
 val androidHome = providers.environmentVariable("ANDROID_HOME").orNull
     ?: throw GradleException("ANDROID_HOME is not set")
 val androidCompileSdk = extra["stoic.android_compile_sdk"] as String
 
 dependencies {
-    implementation(kotlin("stdlib"))
     implementation(project(":target:plugin-sdk"))
+    implementation(project(":target:runtime:core"))
+    implementation(project(":common"))
     implementation(libs.kotlinx.serialization.json)
     compileOnly(files("$androidHome/platforms/android-$androidCompileSdk/android.jar"))
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-}
-
 tasks.jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes("Main-Class" to "com.squareup.stoic.target.runtime.AndroidServerJarKt")
+    }
     // To include all dependencies in the JAR file, uncomment the following lines:
-  //from({
-  //    configurations.runtimeClasspath.get().filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) }
-  //})
+    from({
+        configurations.runtimeClasspath.get().filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) }
+    })
 }

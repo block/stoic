@@ -27,7 +27,7 @@ android {
 }
 
 dependencies {
-    val stoicPluginSdk = "${rootProject.projectDir}/../../sdk/stoic-android-plugin-sdk.jar"
+    val stoicPluginSdk = "${rootProject.projectDir}/../../sdk/stoic-plugin-sdk.jar"
     compileOnly(files(stoicPluginSdk))
     implementation(kotlin("stdlib"))
 }

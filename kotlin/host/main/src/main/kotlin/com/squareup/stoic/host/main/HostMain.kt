@@ -30,7 +30,7 @@ import com.squareup.stoic.common.FileWithSha
 import com.squareup.stoic.common.LogLevel
 import com.squareup.stoic.common.MismatchedVersionException
 import com.squareup.stoic.common.PithyException
-import com.squareup.stoic.common.PluginClient
+import com.squareup.stoic.common.PluginHost
 import com.squareup.stoic.common.PluginParsedArgs
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.logBlock
@@ -616,8 +616,8 @@ fun runPluginFastPath(
   ).stdout()
   try {
     Socket("localhost", portStr.toInt()).use {
-      val client = PluginClient(apkInfo, pluginParsedArgs, it.inputStream, it.outputStream)
-      return client.handle()
+      val host = PluginHost(apkInfo, pluginParsedArgs, it.inputStream, it.outputStream)
+      return host.handle()
     }
   } finally {
     adbProcessBuilder("forward", "--remove", portStr)

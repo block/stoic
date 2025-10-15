@@ -15,7 +15,7 @@ val androidCompileSdk = extra["stoic.android_compile_sdk"] as String
 
 dependencies {
     implementation(kotlin("stdlib"))
-    implementation(project(":android:plugin-sdk"))
+    implementation(project(":target:plugin-sdk"))
     implementation(libs.kotlinx.serialization.json)
     compileOnly(files("$androidHome/platforms/android-$androidCompileSdk/android.jar"))
 }

@@ -23,32 +23,32 @@ like get callbacks or iterate over objects in the heap.
 |            |           |           |  target      |
 |            |           |           |              |
 | +--------+ | --------- | --------> | +--------+   |
-| | client | | <-------- | --------- | | server |   |
+| |  host  | | <-------- | --------- | | server |   |
 | +--------+ |           |           | +--------+   |
 |            |           |           |              |
 +------------+           |           +--------------+
 ```
 
-The stoic "client" is the thing that kicks off the RPC. The stoic "target" is the
-thing the RPC runs within. In order to provide RPC functionality, Stoic depends on:
+The stoic "host" is the thing that kicks off the RPC (typically your laptop). The stoic "target" is the
+thing the RPC runs within (the Android process). In order to provide RPC functionality, Stoic depends on:
 1. An injection mechanism - JVMTI
 2. A bidirectional transport - Unix Domain Sockets
 
 ## Steps in running a plugin
 
 With the aforementioned dependencies in place, Stoic will:
-1. Inject its server inside the target
-2. The target will then notify the client that it's ready for connection
-3. The client will then connect to the server and send it a StartPlugin request
+1. Inject a server inside the target
+2. The server will then notify the host that it's ready for connection
+3. The host will then connect to the server and send it a StartPlugin request
    containing the name and timestamp of the code to be run.
 4. If the plugin isn't available, the server will respond with an error.
-5. The client will send a LoadPlugin request, along with the contents of the
+5. The host will send a LoadPlugin request, along with the contents of the
    plugin apk, and then resend the StartPlugin request
-6. The client and server will exchange multiplexed IO - i.e.
+6. The host and server will exchange multiplexed IO - i.e.
    stdin/stdout/stderr or some mutually agreed upon protocol.
 7. When the plugin finishes (either normally or abnormally) it sends a
    PluginFinished packet and the connection terminates.
-8. The Stoic server will continue to service connection requests in the
+8. The server will continue to service connection requests in the
     target, making future connections faster.
 
 ## Injection

@@ -68,16 +68,16 @@ jobs:
 
       - name: Extract plugin-sdk JAR from tarball
         run: |
-          tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-android-plugin-sdk.jar
+          tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-plugin-sdk.jar
 
       - name: Print publishing info
         run: |
-          ./gradlew :android:plugin-sdk:printPublishingInfo
+          ./gradlew :target:plugin-sdk:printPublishingInfo
 
       - name: Publish verified JAR to Maven Central
         run: |
-          ./gradlew :android:plugin-sdk:publish \
-            -PartifactFile=$(pwd)/sdk/stoic-android-plugin-sdk.jar \
+          ./gradlew :target:plugin-sdk:publish \
+            -PartifactFile=$(pwd)/sdk/stoic-plugin-sdk.jar \
             --info
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
