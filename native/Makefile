@@ -6,7 +6,7 @@ include Makefile.inc
 SRC := stoic.cc
 OBJ := $(addprefix $(OUT_DIR)/, $(SRC:.cc=.o))
 LIBS := $(OUT_DIR)/libnativehelper/libnativehelper.a $(OUT_DIR)/libbase/libbase.a
-TARGET := $(OUT_DIR)/rel/sync/stoic/stoic-jvmti-agent.so
+TARGET := $(OUT_DIR)/sync/stoic/stoic-jvmti-agent.so
 
 .PHONY: all clean prepare
 

@@ -1,5 +1,5 @@
-# Output directory
-OUT_DIR := ../out
+# Output directory (can be overridden via environment variable)
+OUT_DIR ?= ../out
 
 #
 # MIN_API is the lowest Android API level anything we build can run on. Don't

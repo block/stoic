@@ -229,3 +229,127 @@ subprojects {
         }
     }
 }
+
+// Distribution task - assembles all artifacts into build/distributions/
+val buildDistribution by tasks.registering {
+    description = "Builds and assembles all Stoic artifacts into build/distributions/"
+    group = "build"
+
+    // Depend on all the subproject builds
+    dependsOn(
+        ":host:main:assemble",
+        ":host:main:nativeCompile",
+        ":target:plugin-sdk:assemble",
+        ":target:runtime:attached:apk",
+        ":demo-plugin:helloworld:apk",
+        ":demo-plugin:appexitinfo:apk",
+        ":demo-plugin:breakpoint:apk",
+        ":demo-plugin:crasher:apk",
+        ":demo-plugin:testsuite:apk",
+        ":demo-app:without-sdk:assembleDebug",
+        ":demo-app:with-sdk:assembleRelease",
+        ":native:buildNative"
+    )
+
+    val releaseDir = layout.buildDirectory.dir("distributions").get().asFile
+    val syncDir = File(releaseDir, "sync")
+
+    doLast {
+        // Create directory structure
+        File(releaseDir, "jar").mkdirs()
+        File(releaseDir, "sdk").mkdirs()
+        File(releaseDir, "bin/darwin-arm64").mkdirs()
+        File(syncDir, "plugins").mkdirs()
+        File(syncDir, "stoic").mkdirs()
+        File(syncDir, "bin").mkdirs()
+        File(syncDir, "apk").mkdirs()
+
+        // Copy prebuilt files
+        copy {
+            from("prebuilt")
+            into(releaseDir)
+        }
+
+        // Copy host artifacts
+        copy {
+            from("host/main/build/libs/main-$versionName.jar")
+            into("$releaseDir/jar")
+            rename { "stoic-host-main.jar" }
+        }
+        copy {
+            from("host/main/build/native/nativeCompile/stoic")
+            into("$releaseDir/bin/darwin-arm64")
+        }
+
+        // Copy plugin SDK
+        copy {
+            from("target/plugin-sdk/build/libs/plugin-sdk-$versionName.jar")
+            into("$releaseDir/sdk")
+            rename { "stoic-plugin-sdk.jar" }
+        }
+        copy {
+            from("target/plugin-sdk/build/libs/plugin-sdk-$versionName-sources.jar")
+            into("$releaseDir/sdk")
+            rename { "stoic-plugin-sdk-sources.jar" }
+        }
+
+        // Copy runtime APK
+        copy {
+            from("target/runtime/attached/build/libs/attached-$versionName.apk")
+            into("$syncDir/stoic")
+            rename { "stoic-runtime-attached.apk" }
+        }
+
+        // Copy demo apps
+        copy {
+            from("demo-app/without-sdk/build/outputs/apk/debug/without-sdk-debug.apk")
+            into("$syncDir/apk")
+            rename { "stoic-demo-app-without-sdk-debug.apk" }
+        }
+        copy {
+            from("demo-app/with-sdk/build/outputs/apk/release/with-sdk-release.apk")
+            into("$syncDir/apk")
+            rename { "stoic-demo-app-with-sdk-release.apk" }
+        }
+
+        // Copy demo plugins
+        val demoPluginsDir = File(releaseDir, "demo-plugins")
+        demoPluginsDir.mkdirs()
+        copy {
+            from("demo-plugin/appexitinfo/build/libs/appexitinfo-$versionName.apk")
+            into(demoPluginsDir)
+            rename { "appexitinfo.apk" }
+        }
+        copy {
+            from("demo-plugin/breakpoint/build/libs/breakpoint-$versionName.apk")
+            into(demoPluginsDir)
+            rename { "breakpoint.apk" }
+        }
+        copy {
+            from("demo-plugin/crasher/build/libs/crasher-$versionName.apk")
+            into(demoPluginsDir)
+            rename { "crasher.apk" }
+        }
+        copy {
+            from("demo-plugin/helloworld/build/libs/helloworld-$versionName.apk")
+            into(demoPluginsDir)
+            rename { "helloworld.apk" }
+        }
+        copy {
+            from("demo-plugin/testsuite/build/libs/testsuite-$versionName.apk")
+            into(demoPluginsDir)
+            rename { "testsuite.apk" }
+        }
+
+        // Set permissions on sync directory
+        exec {
+            commandLine("chmod", "-R", "a+rw", syncDir.absolutePath)
+        }
+
+        println()
+        println()
+        println("----- Stoic build completed -----")
+        println()
+        println()
+    }
+}

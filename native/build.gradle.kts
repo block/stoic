@@ -2,9 +2,9 @@
 
 val stoicDir = rootProject.projectDir
 val nativeDir = projectDir
-val outDir = stoicDir.resolve("out")
-val relSyncDir = outDir.resolve("rel/sync")
-val targetSo = relSyncDir.resolve("stoic/stoic-jvmti-agent.so")
+val distributionsDir = rootProject.layout.buildDirectory.dir("distributions").get().asFile
+val syncDir = distributionsDir.resolve("sync")
+val targetSo = syncDir.resolve("stoic/stoic-jvmti-agent.so")
 
 // Read android_ndk_version from stoic.properties
 val stoicProps = java.util.Properties().apply {
@@ -23,7 +23,7 @@ tasks.register<Exec>("buildNative") {
     commandLine("make", "-j16", "all")
 
     environment("ANDROID_NDK", androidNdk)
-    environment("OUT_DIR", outDir.absolutePath)
+    environment("OUT_DIR", distributionsDir.absolutePath)
 
     inputs.files(
         fileTree(nativeDir) {
@@ -42,7 +42,7 @@ tasks.register<Exec>("buildNative") {
 }
 
 tasks.register<Delete>("clean") {
-    delete(outDir)
+    delete(distributionsDir)
 }
 
 // Make the native build part of the default build

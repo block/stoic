@@ -9,7 +9,7 @@ source "$stoic_dir/prebuilt/script/android_serial.sh"
 _android_serial
 
 # We cd so that we can run ./stoic in a subshell without any env vars
-cd "$stoic_dir/out/rel/bin"
+cd "$stoic_dir/build/distributions/bin"
 
 # warm
 ./stoic helloworld >/dev/null
