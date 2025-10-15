@@ -30,7 +30,7 @@ plugins {
     alias(libs.plugins.vanniktech.maven.publish.base) apply false
 }
 
-val prebuiltDir = rootProject.file("../prebuilt")
+val prebuiltDir = rootProject.file("prebuilt")
 val versionFile = prebuiltDir.resolve("STOIC_VERSION")
 val versionName = versionFile.readText().trim()
 

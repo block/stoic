@@ -8,7 +8,7 @@ plugins {
 // bridge. i.e. Normal code never directly depends on generated code. Instead it depends on the
 // bridge "interface", which in turn delegates to the generated code.
 
-val prebuiltDir = rootProject.file("../prebuilt")
+val prebuiltDir = rootProject.file("prebuilt")
 val stoicProps = Properties().apply {
     prebuiltDir.resolve("stoic.properties").reader().use { load(it) }
 }

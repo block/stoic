@@ -7,7 +7,7 @@ script_dir="$(dirname "$(readlink -f "$0")")"
 
 # To ensure stability, we always build clean
 rm -rf "$script_dir/../out"
-(cd "$script_dir/../kotlin" && ./gradlew clean)
+(cd "$script_dir/.." && ./gradlew clean)
 "$script_dir/../build.sh"
 
 if [ "$(realpath "$(which stoic)")" != "$(realpath "$script_dir/../out/rel/bin/darwin-arm64/stoic")" ]; then

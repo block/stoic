@@ -3,7 +3,6 @@
 set -euo pipefail
 
 stoic_dir="$(realpath "$(dirname "$(readlink -f "$0")")")"
-stoic_kotlin_dir="$stoic_dir/kotlin"
 stoic_release_dir="$stoic_dir/out/rel"
 stoic_core_sync_dir="$stoic_release_dir/sync"
 
@@ -122,7 +121,7 @@ export ANDROID_NDK="$ANDROID_HOME/ndk/$android_ndk_version"
 
 stoic_version="$(cat "$stoic_dir/prebuilt/STOIC_VERSION")"
 
-cd "$stoic_kotlin_dir"
+cd "$stoic_dir"
 
 setup_graalvm() {
   if [ -n "${GRAALVM_HOME:-}" ] && [ -d "$GRAALVM_HOME" ]; then

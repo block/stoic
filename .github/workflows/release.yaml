@@ -11,16 +11,13 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
-    defaults:
-       run:
-         working-directory: kotlin
 
     steps:
       - uses: actions/checkout@v5
 
       - name: Read version
         id: version
-        run: echo "version=$(cat ../prebuilt/STOIC_VERSION)" >> $GITHUB_OUTPUT
+        run: echo "version=$(cat prebuilt/STOIC_VERSION)" >> $GITHUB_OUTPUT
 
       - name: Verify tag matches STOIC_VERSION
         run: |

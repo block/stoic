@@ -3,9 +3,9 @@ name: gradle-wrapper
 on:
   pull_request:
     paths:
-    - 'kotlin/gradlew'
-    - 'kotlin/gradlew.bat'
-    - 'kotlin/gradle/wrapper/**'
+    - 'gradlew'
+    - 'gradlew.bat'
+    - 'gradle/wrapper/**'
 
 jobs:
   validate:
