@@ -17,7 +17,7 @@
 
 ## Introduction
 
-Stoic provides a communication channel from your laptop inside an app process.
+Stoic provides communication channels from your laptop into app processes.
 It lets you look within your Android processes, understand their behavior, and
 solve difficult problems.
 
