@@ -28,9 +28,6 @@ tasks.register<Exec>("buildNative") {
             include("*.cc", "*.h", "Makefile*")
         }
     )
-    inputs.dir(nativeDir.resolve("libbase"))
-    inputs.dir(nativeDir.resolve("libnativehelper"))
-    inputs.dir(nativeDir.resolve("fmtlib"))
 
     // Output files for each architecture
     androidArchitectures.forEach { arch ->

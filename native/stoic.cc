@@ -10,10 +10,9 @@
 #define LOG_TAG "stoic"
 
 #include <android/log.h>
-#include <android-base/logging.h>
-#include <android-base/macros.h>
-#include <nativehelper/scoped_local_ref.h>
-#include <nativehelper/scoped_utf_chars.h>
+#include "stoic_logging.h"
+#include "scoped_local_ref.h"
+#include "scoped_utf_chars.h"
 
 #include <jni.h>
 #include <stdlib.h>

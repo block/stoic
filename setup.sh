@@ -47,40 +47,9 @@ if [ -z "${AUTO_YES+x}" ]; then
 fi
 
 #
-# Verify Git Submodules
+# Git submodules have been removed - dependencies are now included locally
+# (kept this comment as documentation of the change)
 #
-
-verify_submodules() {
-    for x in "$@"; do
-        if [ -z "$(2>/dev/null ls "$stoic_dir/$x/")" ]; then
-            return 1
-        fi
-    done
-
-    return 0
-}
-
-if ! verify_submodules native/libbase/ native/fmtlib/ native/libnativehelper/; then
-    >&2 echo "Submodules are missing. Likely your ran git clone without --recurse-submodules."
-    >&2 echo "Will run \`git submodule update --init --recursive\`"
-    if [[ "$AUTO_YES" -eq 1 ]]; then
-        >/dev/null pushd "$stoic_dir"
-        git submodule update --init --recursive
-        >/dev/null popd
-    else
-        read -r -p "Okay? (Y/n) " choice
-        case "$(echo "$choice" | tr '[:upper:]' '[:lower:]')" in
-          n*)
-            exit 1
-            ;;
-          *)
-            >/dev/null pushd "$stoic_dir"
-            git submodule update --init --recursive
-            >/dev/null popd
-            ;;
-        esac
-    fi
-fi
 
 #
 # Install required Android SDK packages

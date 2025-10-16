@@ -1,9 +1,0 @@
-[submodule "native/libnativehelper"]
-	path = native/libnativehelper
-	url = https://android.googlesource.com/platform/libnativehelper
-[submodule "native/libbase"]
-	path = native/libbase
-	url = https://android.googlesource.com/platform/system/libbase
-[submodule "native/fmtlib"]
-	path = native/fmtlib
-	url = https://android.googlesource.com/platform/external/fmtlib
