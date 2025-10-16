@@ -124,6 +124,23 @@ attach_jvmti() {
   pkg_options_json="$pkg_stoic_dir/options.json"
   attach_error_summary=""
 
+  # Detect device architecture and select appropriate .so file
+  device_arch="$(getprop ro.product.cpu.abi)"
+  case "$device_arch" in
+    arm64-v8a)
+      stoic_so_path="$stoic_device_sync_dir/stoic/arm64-v8a/stoic-jvmti-agent.so"
+      ;;
+    x86_64)
+      stoic_so_path="$stoic_device_sync_dir/stoic/x86_64/stoic-jvmti-agent.so"
+      ;;
+    *)
+      >&2 echo "Unsupported architecture: $device_arch"
+      >&2 echo "Supported architectures: arm64-v8a, x86_64"
+      exit 1
+      ;;
+  esac
+  >&2 echo "Using architecture: $device_arch"
+
   # TODO: Use a lock to ensure that multiple processes aren't attempting to bring
   # the server up simultaneously
 
@@ -134,7 +151,7 @@ attach_jvmti() {
   fi
 
   run_as_compat "$pkg" mkdir "$pkg_stoic_dir"
-  cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-jvmti-agent.so" "$pkg_so"
+  cross_uid_cp 444 "$stoic_so_path" "$pkg_so"
   cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-runtime-attached.apk" "$pkg_server_apk"
   echo "{\"stoicProtocolVersion\":$stoic_protocol_version, \"attachedVia\":\"$attach_option\"}" | cross_uid_cp 444 - "$pkg_options_json"
 

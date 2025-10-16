@@ -1,38 +1,37 @@
 # For details on how to build for the ndk, see
 # https://android.googlesource.com/platform/ndk/+/master/docs/BuildSystemMaintainers.md
 
-include Makefile.inc
+# Build for multiple architectures
+ARCHS := arm64-v8a x86_64
+
+# Map Android ABI names to NDK toolchain prefixes
+ARCH_arm64-v8a_PREFIX := aarch64-linux-android
+ARCH_x86_64_PREFIX := x86_64-linux-android
+
+MIN_API := 29
+NDK_PATH := $(ANDROID_NDK)
+NDK_TOOLCHAIN := $(NDK_PATH)/toolchains/llvm/prebuilt/darwin-x86_64
+SYSROOT := $(NDK_TOOLCHAIN)/sysroot
 
 SRC := stoic.cc
-OBJ := $(addprefix $(OUT_DIR)/, $(SRC:.cc=.o))
-LIBS := $(OUT_DIR)/libnativehelper/libnativehelper.a $(OUT_DIR)/libbase/libbase.a
-TARGET := $(OUT_DIR)/sync/stoic/stoic-jvmti-agent.so
 
-.PHONY: all clean prepare
+.PHONY: all clean prepare $(ARCHS)
 
-# Target to create the output directory
-prepare:
-	mkdir -p $(OUT_DIR)/
+all: $(ARCHS)
 
-# Main target depends on prepare to ensure the output directory exists
-all: prepare $(TARGET)
-
-$(TARGET): $(OBJ) $(LIBS)
-	$(CXX) $(LDFLAGS) -shared -o $@ $^ $(LIBS)
-
-$(OUT_DIR)/%.o: %.cc
-	$(CXX) $(CFLAGS) -c $< -o $@
-
-$(OUT_DIR)/libnativehelper/libnativehelper.a:
-	$(MAKE) -f Makefile.lnh all
-
-$(OUT_DIR)/libbase/libbase.a:
-	$(MAKE) -f Makefile.lb all
+# Build target for each architecture
+$(ARCHS):
+	@echo "Building for $@..."
+	$(MAKE) -f Makefile.arch ARCH=$@ \
+		ARCH_PREFIX=$(ARCH_$@_PREFIX) \
+		MIN_API=$(MIN_API) \
+		NDK_TOOLCHAIN=$(NDK_TOOLCHAIN) \
+		SYSROOT=$(SYSROOT) \
+		OUT_DIR=$(OUT_DIR)
 
 clean:
 	rm -rf $(OUT_DIR)
 
 debug:
-	@echo "SRC = $(SRC)"
-	@echo "OBJ = $(OBJ)"
-	@echo "TARGET = $(TARGET)"
+	@echo "ARCHS = $(ARCHS)"
+	@echo "OUT_DIR = $(OUT_DIR)"

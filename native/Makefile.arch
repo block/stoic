@@ -1,0 +1,49 @@
+# Architecture-specific build
+# This Makefile is called from the main Makefile for each architecture
+
+# Compiler setup for this architecture
+CC := $(NDK_TOOLCHAIN)/bin/$(ARCH_PREFIX)$(MIN_API)-clang
+CXX := $(NDK_TOOLCHAIN)/bin/$(ARCH_PREFIX)$(MIN_API)-clang++
+LD := $(CXX)
+
+# Flags
+CFLAGS := -fPIC -Wall -DANDROID -D__ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__ -I$(SYSROOT)/usr/include -Ilibbase/include -Ilibnativehelper/header_only_include -g -O0
+CXXFLAGS := $(CFLAGS) -Ilibbase/include -Ifmtlib/include -std=c++20 -Wno-c99-extensions
+LDFLAGS := -L$(SYSROOT)/usr/lib -static-libstdc++ -static-libgcc -std=c++2a -landroid -llog -lEGL -lGLESv2 -lm
+
+# Architecture-specific output directories
+ARCH_OUT_DIR := $(OUT_DIR)/$(ARCH)
+ARCH_SYNC_DIR := $(OUT_DIR)/sync/stoic/$(ARCH)
+
+SRC := stoic.cc
+OBJ := $(ARCH_OUT_DIR)/stoic.o
+LIBS := $(ARCH_OUT_DIR)/libnativehelper/libnativehelper.a $(ARCH_OUT_DIR)/libbase/libbase.a
+TARGET := $(ARCH_SYNC_DIR)/stoic-jvmti-agent.so
+
+.PHONY: all prepare
+
+all: prepare $(TARGET)
+
+prepare:
+	mkdir -p $(ARCH_OUT_DIR)
+	mkdir -p $(ARCH_SYNC_DIR)
+
+$(TARGET): $(OBJ) $(LIBS)
+	$(CXX) $(LDFLAGS) -shared -o $@ $^ $(LIBS)
+
+$(OBJ): stoic.cc
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(ARCH_OUT_DIR)/libnativehelper/libnativehelper.a:
+	$(MAKE) -f Makefile.lnh all \
+		OUT_DIR="$(ARCH_OUT_DIR)" \
+		CC="$(CC)" \
+		BASE_CFLAGS="$(CFLAGS)" \
+		AR="$(AR)"
+
+$(ARCH_OUT_DIR)/libbase/libbase.a:
+	$(MAKE) -f Makefile.lb all \
+		OUT_DIR="$(ARCH_OUT_DIR)" \
+		CXX="$(CXX)" \
+		BASE_CXXFLAGS="$(CXXFLAGS)" \
+		AR="$(AR)"

@@ -55,7 +55,7 @@ Sometimes it's more convenient to build a plugin into your app. That way you
 can call your own APIs directly, without needing reflection. You can do that
 with the [plugin sdk](https://mvnrepository.com/artifact/com.squareup.stoic/plugin-sdk).
 
-Stoic works on any API 26+ Android device / emulator, with any debuggable app (that I've tested so far).
+Stoic works on any API 29+ (Android 10+) device / emulator, with any debuggable app (that I've tested so far).
 
 
 ## Bundled Plugins

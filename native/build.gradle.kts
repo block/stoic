@@ -1,10 +1,9 @@
-// Build native C++ JVMTI agent using existing Makefile
+// Build native C++ JVMTI agent using existing Makefile for multiple architectures
 
 val stoicDir = rootProject.projectDir
 val nativeDir = projectDir
 val distributionsDir = rootProject.layout.buildDirectory.dir("distributions").get().asFile
 val syncDir = distributionsDir.resolve("sync")
-val targetSo = syncDir.resolve("stoic/stoic-jvmti-agent.so")
 
 // Read android_ndk_version from gradle.properties
 val androidNdkVersion = rootProject.providers.gradleProperty("android.ndkVersion").get()
@@ -13,6 +12,9 @@ val androidHome = System.getenv("ANDROID_HOME")
     ?: error("ANDROID_HOME environment variable not set")
 
 val androidNdk = "$androidHome/ndk/$androidNdkVersion"
+
+// Build for multiple architectures
+val androidArchitectures = listOf("arm64-v8a", "x86_64")
 
 tasks.register<Exec>("buildNative") {
     workingDir = nativeDir
@@ -30,10 +32,14 @@ tasks.register<Exec>("buildNative") {
     inputs.dir(nativeDir.resolve("libnativehelper"))
     inputs.dir(nativeDir.resolve("fmtlib"))
 
-    outputs.file(targetSo)
+    // Output files for each architecture
+    androidArchitectures.forEach { arch ->
+        outputs.file(syncDir.resolve("stoic/$arch/stoic-jvmti-agent.so"))
+    }
 
     doFirst {
-        println("Building native JVMTI agent with NDK: $androidNdk")
+        println("Building native JVMTI agent for architectures: ${androidArchitectures.joinToString(", ")}")
+        println("Using NDK: $androidNdk")
     }
 }
 

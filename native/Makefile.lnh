@@ -1,8 +1,13 @@
 # Build libnativehelper
-include Makefile.inc
 
 LNH_DIR := libnativehelper
-CFLAGS := $(CFLAGS) $(addprefix -I$(LNH_DIR)/, header_only_include include include_jni include_platform include_platform_header_only)
+
+# Allow CFLAGS and CC to be overridden
+CC ?= cc
+AR ?= ar
+BASE_CFLAGS ?= -fPIC -Wall
+
+CFLAGS := $(BASE_CFLAGS) $(addprefix -I$(LNH_DIR)/, header_only_include include include_jni include_platform include_platform_header_only)
 CXXFLAGS := $(LNH_CFLAGS) -std=c++17
 LIBS :=
 SRC := $(addprefix libnativehelper/, DlHelp.c ExpandableString.c JNIHelp.c JNIPlatformHelp.c JniConstants.c JniInvocation.c file_descriptor_jni.c)

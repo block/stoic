@@ -1,9 +1,13 @@
-# Build libnativehelper
-include Makefile.inc
+# Build libbase
 
 LB_DIR := libbase
-CFLAGS := $(CFLAGS) $(addprefix -I$(LB_DIR)/, include) -Ifmtlib/include
-CXXFLAGS := $(CFLAGS) -std=c++20 -Wno-c99-extensions
+
+# Allow CXXFLAGS and CXX to be overridden
+CXX ?= c++
+AR ?= ar
+BASE_CXXFLAGS ?= -fPIC -Wall
+
+CXXFLAGS := $(BASE_CXXFLAGS) $(addprefix -I$(LB_DIR)/, include) -Ifmtlib/include -std=c++20 -Wno-c99-extensions
 LIBS :=
 SRC := $(addprefix $(LB_DIR)/, abi_compatibility.cpp chrono_utils.cpp cmsg.cpp file.cpp hex.cpp logging.cpp mapped_file.cpp parsebool.cpp parsenetaddress.cpp posix_strerror_r.cpp process.cpp properties.cpp result.cpp stringprintf.cpp strings.cpp threads.cpp test_utils.cpp)
 OBJ := $(addprefix $(OUT_DIR)/, $(SRC:.cpp=.o))
