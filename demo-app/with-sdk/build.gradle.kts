@@ -7,15 +7,6 @@ android {
   namespace = "com.squareup.stoic.demoapp.withsdk"
   compileSdk = (extra["stoic.android_compile_sdk"] as String).toInt()
 
-  signingConfigs {
-    create("release") {
-      storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
-  }
-
   defaultConfig {
     applicationId = "com.squareup.stoic.demoapp.withsdk"
     minSdk = (extra["stoic.android_min_sdk"] as String).toInt()
@@ -33,7 +24,9 @@ android {
     all {
       isDebuggable = false
       isMinifyEnabled = false
-      signingConfig = signingConfigs.getByName("release")
+      // This is a release build in the sense that it is not debuggable, but
+      // we're still signing it with debug keys
+      signingConfig = signingConfigs.getByName("debug")
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
   }
