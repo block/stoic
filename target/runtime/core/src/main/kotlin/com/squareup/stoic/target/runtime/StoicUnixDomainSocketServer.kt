@@ -6,7 +6,7 @@ import com.squareup.stoic.common.JvmtiAttachOptions
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.optionsJsonFromStoicDir
 import com.squareup.stoic.common.serverSocketName
-import com.squareup.stoic.common.waitFifo
+import com.squareup.stoic.common.serverUpFile
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
@@ -58,17 +58,15 @@ private fun startServer(stoicDir: String) {
     val namespace = server.localSocketAddress.namespace
     Log.d("stoic", "localSocketAddress: ($name, $namespace)")
 
-    thread(name = "stoic-server") {
-      val fifo = waitFifo(File(stoicDir))
-      Log.d("stoic", "Letting the client know that we're up by writing to the $fifo")
-      try {
-        // It doesn't actually matter what we write - we just need to open it for writing
-        fifo.outputStream().close()
-        Log.d("stoic", "wrote to $fifo!!")
-      } catch (e: IOException) {
-        Log.e("stoic", "Failed to write to $fifo", e)
-        throw e
-      }
+    // Signal that the server is ready
+    val serverUp = serverUpFile(File(stoicDir))
+    Log.d("stoic", "Letting the client know that we're up by creating $serverUp")
+    try {
+      serverUp.createNewFile()
+      Log.d("stoic", "created $serverUp!!")
+    } catch (e: IOException) {
+      Log.e("stoic", "Failed to create $serverUp", e)
+      throw e
     }
 
     while (true) {

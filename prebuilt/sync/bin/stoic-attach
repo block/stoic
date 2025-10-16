@@ -1,8 +1,14 @@
 #!/system/bin/sh
 set -eux
 
-script_dir="$(realpath "$(dirname "$(readlink -f "$0")")")"
-stoic_device_sync_dir="$(realpath "$script_dir/..")"
+# API 26 (Android 8.0) doesn't have readlink -f, so we use a more compatible approach
+script_path="$0"
+# Try readlink -f first (API 29+), fall back to just using $0
+if command -v readlink >/dev/null 2>&1; then
+  script_path="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+fi
+script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+stoic_device_sync_dir="$(cd "$script_dir/.." && pwd)"
 cd "$script_dir"
 
 run_as_compat() {
@@ -87,17 +93,9 @@ cross_uid_cp() {
 }
 
 target_process_exited=0
-wait_for_server_up_pid=""
 logcat_pid=""
 selinux_denials_pgid_file=""
 cleanup_attach() {
-  if [ -n "${wait_for_server_up_pid:-}" ]; then
-    # server_up_pid is the process running timeout - killing that doesn't
-    # actually unblock anything - we'd need to kill the pid inside (the one
-    # that's running sh). Instead, we just write to the fifo to cause it to
-    # exit
-    run_as_compat "$pkg" timeout 1s sh -c ": > $pkg_stoic_dir/server-up.fifo" || true
-  fi
   if [ -n "${logcat_pid:-}" ]; then
     if [ "$target_process_exited" = "1" ]; then
       # We want to make sure we print all the information we need to debug why
@@ -155,20 +153,6 @@ attach_jvmti() {
   cross_uid_cp 444 "$stoic_device_sync_dir/stoic/stoic-runtime-attached.apk" "$pkg_server_apk"
   echo "{\"stoicProtocolVersion\":$stoic_protocol_version, \"attachedVia\":\"$attach_option\"}" | cross_uid_cp 444 - "$pkg_options_json"
 
-  run_as_compat "$pkg" mkfifo "$pkg_stoic_dir/server-up.fifo"
-
-  if [ "$attach_option" = "jvmti_root" ]; then
-    # Need to fix up SELinux permissions (multi-level security category).
-    # Otherwise the app won't be able to write to the fifo.
-    full_mls_category_set="$(su 0 ls -Zd "$pkg_dir" | awk '{print $1}')"
-    su 0 chcon -R "$full_mls_category_set" "$pkg_stoic_dir"
-  fi
-
-  run_as_compat "$pkg" timeout 20s sh -c ": < $pkg_stoic_dir/server-up.fifo" 2>/dev/null &
-  wait_for_server_up_pid=$!
-
-  >&2 echo "wait_for_server_up started in background with PID $wait_for_server_up_pid"
-
   first_pid="$(pidof "$pkg" || true)"
 
   # Sets pkg_pid and restarts pkg if needed
@@ -206,33 +190,37 @@ attach_jvmti() {
     attach_agent_compat "$pkg" "$pkg_so=$pkg_stoic_dir"
   fi
 
-  # We need to wait for one of the two to exit, so we poll in a loop
-  >&2 echo "Waiting for wait_for_server_up/target_process to finish..."
+  # Poll for server-up file or process exit
+  >&2 echo "Waiting for server to come up..."
+  start_time=$(date +%s)
+  timeout=20
   while :; do
-    if ! kill -0 "$wait_for_server_up_pid" 2>/dev/null; then
-      wait_for_server_up_exit_status=0
-      wait $wait_for_server_up_pid || wait_for_server_up_exit_status=$?
-      attach_error_summary="wait_for_server_up exited with $wait_for_server_up_exit_status"
-      wait_for_server_up_pid=""
-      exit $wait_for_server_up_exit_status
+    # Check if server is up
+    if run_as_compat "$pkg" sh -c "[ -f $pkg_stoic_dir/server-up ]"; then
+      >&2 echo "Server is up!"
+      exit 0
     fi
 
+    # Check for SELinux denials
     if run_as_compat "$pkg" sh -c "[ -s $selinux_denials ]"; then
       attach_error_summary="SELinux problem detected - you may be able to work around it with \`adb shell su 0 setenforce 0\`"
       exit 1
     fi
 
-    # We cannot use `kill -0` on app pids without root, so we use ps to check
-    # if the process has exited instead
-    # (TODO: in rare cases this seems to be slow at detecting the process has
-    # exited - it might be helpful to check the status to see if its a zombie)
+    # Check if target process exited
     if ! ps -p "$pkg_pid" -o NAME= 2>/dev/null | grep -q "$pkg"; then
       target_process_exited=1
       attach_error_summary="Target process ($pkg_pid) exited"
       exit 1
     fi
 
-    >&2 echo "both processes still alive, sleeping 0.1s"
+    # Check for timeout
+    current_time=$(date +%s)
+    elapsed=$((current_time - start_time))
+    if [ "$elapsed" -ge "$timeout" ]; then
+      attach_error_summary="Timed out waiting for server to start"
+      exit 1
+    fi
 
     sleep 0.1
   done

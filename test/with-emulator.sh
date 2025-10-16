@@ -15,7 +15,7 @@ if [ $# -lt 2 ]; then
     echo "  $0 29 ./test-demo-app-without-sdk.sh" >&2
     echo "  $0 34 ./test-demo-app-without-sdk.sh --verbose" >&2
     echo "" >&2
-    echo "Supported API levels: 29, 30, 31, 32, 33, 34, 35" >&2
+    echo "Supported API levels: 26, 29, 30, 31, 32, 33, 34, 35" >&2
     exit 1
 fi
 
@@ -26,6 +26,7 @@ TEST_ARGS=("$@")
 
 # Configuration mapping
 declare -A ANDROID_VERSIONS=(
+    [26]="8.0"
     [29]="10.0"
     [30]="11.0"
     [31]="12.0"
@@ -37,6 +38,7 @@ declare -A ANDROID_VERSIONS=(
 
 # System image type mapping (use default for all - no need for google_apis)
 declare -A SYSTEM_IMAGE_TYPES=(
+    [26]="default"
     [29]="default"
     [30]="default"
     [31]="default"
@@ -118,7 +120,7 @@ cleanup() {
     # Kill emulator
     if [ -n "${EMULATOR_PID:-}" ] && kill -0 "$EMULATOR_PID" 2>/dev/null; then
         echo "Stopping emulator (PID: $EMULATOR_PID)..."
-        "$ADB" -s "$EMULATOR_SERIAL" emu kill 2>/dev/null || true
+        "$ADB" emu kill 2>/dev/null || true
         # Wait a bit for graceful shutdown
         sleep 2
         # Force kill if still running
@@ -199,13 +201,13 @@ if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
 fi
 
 # Get emulator serial
-EMULATOR_SERIAL=$("$ADB" devices | grep "emulator-" | head -1 | awk '{print $1}')
-echo "Emulator device: $EMULATOR_SERIAL"
+export ANDROID_SERIAL=$("$ADB" devices | grep "emulator-" | head -1 | awk '{print $1}')
+echo "Emulator device: $ANDROID_SERIAL"
 
 echo ""
 echo "Waiting for emulator to finish booting..."
-"$ADB" -s "$EMULATOR_SERIAL" wait-for-device
-"$ADB" -s "$EMULATOR_SERIAL" shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done'
+"$ADB" wait-for-device
+"$ADB" shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done'
 
 echo "Emulator is ready!"
 echo ""
@@ -215,10 +217,10 @@ LOGCAT_DIR="/tmp/.stoic"
 LOGCAT_FILE="$LOGCAT_DIR/with-emulator-logcat.txt"
 mkdir -p "$LOGCAT_DIR"
 
-echo "Starting logcat capture to $LOGCAT_FILE..."
+echo "Starting logcat capture to $LOGCAT_FILE ..."
 # Clear logcat and start capturing from current time with timestamp
-"$ADB" -s "$EMULATOR_SERIAL" logcat -c
-"$ADB" -s "$EMULATOR_SERIAL" logcat -v time > "$LOGCAT_FILE" &
+#"$ADB" logcat -c
+"$ADB" logcat -v time > "$LOGCAT_FILE" &
 LOGCAT_PID=$!
 echo "Logcat started (PID: $LOGCAT_PID)"
 echo ""
@@ -229,7 +231,6 @@ echo "================================================"
 echo ""
 
 # Set environment variables for the test script
-export ANDROID_SERIAL="$EMULATOR_SERIAL"
 export API_LEVEL="$API_LEVEL"
 
 # Uncomment for better native stack traces

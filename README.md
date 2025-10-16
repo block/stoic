@@ -63,7 +63,7 @@ with the [plugin sdk](https://mvnrepository.com/artifact/com.squareup.stoic/plug
 To use Stoic with non-debuggable builds, include the [app sdk](https://mvnrepository.com/artifact/com.squareup.stoic/app-sdk)
 in your app and register the `StoicBroadcastReceiver` in your AndroidManifest.xml.
 
-Stoic works on any API 29+ (Android 10+) device / emulator, with any debuggable app (that I've tested so far).
+Stoic works on any API 26+ (Android 8.0+) device / emulator, with any debuggable app (that I've tested so far).
 
 
 ## Bundled Plugins

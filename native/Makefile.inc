@@ -12,7 +12,7 @@ OUT_DIR ?= ../out
 #
 
 # NDK setup
-MIN_API := 29
+MIN_API := 26
 NDK_PATH := $(ANDROID_NDK)
 NDK_PLATFORM_LEVEL := android-$(MIN_API)
 NDK_TOOLCHAIN := $(NDK_PATH)/toolchains/llvm/prebuilt/darwin-x86_64

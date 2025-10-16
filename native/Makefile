@@ -8,7 +8,7 @@ ARCHS := arm64-v8a x86_64
 ARCH_arm64-v8a_PREFIX := aarch64-linux-android
 ARCH_x86_64_PREFIX := x86_64-linux-android
 
-MIN_API := 29
+MIN_API := 26
 NDK_PATH := $(ANDROID_NDK)
 NDK_TOOLCHAIN := $(NDK_PATH)/toolchains/llvm/prebuilt/darwin-x86_64
 SYSROOT := $(NDK_TOOLCHAIN)/sysroot

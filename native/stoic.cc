@@ -1194,15 +1194,42 @@ static jint AgentStart(JavaVM* vm, char* options, [[maybe_unused]] void* reserve
   AgentInfo* ai = new AgentInfo;
   ai->options = sopts;
 
-  jvmtiCapabilities caps = {
-    .can_tag_objects = JNI_TRUE,
-    .can_generate_breakpoint_events = JNI_TRUE,
+  // Request can_tag_objects (required for heap iteration)
+  jvmtiCapabilities tagCap = {.can_tag_objects = JNI_TRUE};
+  CHECK_JVMTI(jvmti->AddCapabilities(&tagCap));
+
+  // Try to add breakpoint capability - not available on API 26
+  jvmtiCapabilities breakpointCap = {.can_generate_breakpoint_events = JNI_TRUE};
+  int breakpointResult = jvmti->AddCapabilities(&breakpointCap);
+  if (breakpointResult != JVMTI_ERROR_NONE) {
+    __android_log_print(
+        ANDROID_LOG_WARN,
+        "stoic",
+        "Breakpoint events not available (this is expected on API 26)\n"
+    );
+  } else {
+    __android_log_print(ANDROID_LOG_INFO, "stoic", "Breakpoint events are available\n");
+  }
+
+  // Try to add method entry/exit capabilities - these aren't available on API 26-29
+  jvmtiCapabilities entryExitCaps = {
     .can_generate_method_entry_events = JNI_TRUE,
     .can_generate_method_exit_events = JNI_TRUE,
-    // Only available on API 30+ - needed for ForceEarlyReturn* APIs
-    //.can_force_early_return = JNI_TRUE,
   };
-  CHECK_JVMTI(jvmti->AddCapabilities(&caps) != JVMTI_ERROR_NONE);
+  int entryExitCapsResult = jvmti->AddCapabilities(&entryExitCaps);
+  if (entryExitCapsResult != JVMTI_ERROR_NONE) {
+    __android_log_print(
+        ANDROID_LOG_WARN,
+        "stoic",
+        "Method entry/exit capabilities not available (this is expected on API 26-29)\n"
+    );
+  } else {
+    __android_log_print(
+        ANDROID_LOG_INFO,
+        "stoic",
+        "Method entry/exit capabilities are available\n"
+    );
+  }
 
 //{
 //  // Entry/exit capabilities must be added at load time, but they aren't
@@ -1237,7 +1264,11 @@ static jint AgentStart(JavaVM* vm, char* options, [[maybe_unused]] void* reserve
   };
   CHECK_JVMTI(jvmti->SetEventCallbacks(&cb, sizeof(cb)));
   CHECK_JVMTI(jvmti->SetEnvironmentLocalStorage(reinterpret_cast<void*>(ai)));
-  CHECK_JVMTI(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, nullptr /* all threads */));
+
+  // Only enable breakpoint events if we have the capability
+  if (breakpointResult == JVMTI_ERROR_NONE) {
+    CHECK_JVMTI(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, nullptr /* all threads */));
+  }
 
   if (kIsOnLoad) {
     LOG(DEBUG) << "kIsOnLoad";

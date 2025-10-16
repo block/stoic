@@ -265,8 +265,8 @@ fun serverSocketName(pkg: String): String {
   return "$SOCKET_PREFIX/$pkg/$SERVER_SUFFIX"
 }
 
-// Socket name (in abstract namespace) for server to connect to host (to tell it that it's up)
-fun waitFifo(pkgStoicDir: File): File {
+// Marker file that server creates to signal it's ready
+fun serverUpFile(pkgStoicDir: File): File {
   // Needs to match the name in stoic-attach
-  return pkgStoicDir.resolve("server-up.fifo")
+  return pkgStoicDir.resolve("server-up")
 }

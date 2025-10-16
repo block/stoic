@@ -2,18 +2,18 @@
 set -euo pipefail
 
 # Script to run Stoic tests on multiple emulator API levels
-# This script tests on a subset of API levels for speed (29 and 34)
+# This script tests on a subset of API levels for speed
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "================================================"
 echo "Stoic Emulator Test Suite"
 echo "================================================"
-echo "This will run all tests on API 29 and API 34"
+echo "This will run all tests on API 26, 29, 30, and 35"
 echo ""
 
 # API levels to test
-API_LEVELS=(29 30 35)
+API_LEVELS=(26 29 30 35)
 
 # Track failures
 FAILED_API_LEVELS=()

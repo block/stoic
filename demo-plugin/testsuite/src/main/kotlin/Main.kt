@@ -40,6 +40,10 @@ fun testDuplicateArguments() {
 
 fun testTrace() {
   eprintln("testTrace")
+  if (Build.VERSION.SDK_INT < 29) {
+    eprintln("skipping (requires API 29+ for IterateOverInstancesOfClass)")
+    return
+  }
 
   // Run ahead of time to capture clinit
   Foo.bar()
@@ -127,6 +131,10 @@ class Bar(val baz: Int) {
 
 fun testMethodEntry() {
   eprintln("testMethodEntry")
+  if (Build.VERSION.SDK_INT < 29) {
+    eprintln("skipping (requires API 29+)")
+    return
+  }
 
   var methodEntryCalled = false
 
@@ -153,6 +161,10 @@ fun testMethodEntry() {
 
 fun testMethodExit() {
   eprintln("testMethodExit")
+  if (Build.VERSION.SDK_INT < 29) {
+    eprintln("skipping (requires API 29+)")
+    return
+  }
 
   var methodExitCalled = false
 
