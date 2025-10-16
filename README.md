@@ -24,11 +24,16 @@ solve difficult problems.
 Stoic establishes its communication channel in one of two ways:
 1. On debuggable APKs, Stoic can leverage debug APIs to establish a channel
    without any modifications to the APK
-2. You can compile the Stoic plugin SDK into a non-debuggable APK, export a
-   ContentProvider, and Stoic will use that to establish a channel.
+2. You can compile the Stoic app SDK into a non-debuggable APK, which will
+   register a BroadcastReceiver, and Stoic will use that to establish a channel
+   on-demand.
 
 If the debug API method is used, then your plugin will have access to extra
 capabilities - normally only available to a debugger.
+
+The BroadcastReceiver approach is lazy - no Stoic code runs in your app until
+Stoic actually tries to attach, and it can even start your process if it's not
+already running.
 
 You can write plugins that
 1. provide command-line access to APIs normally only available inside the process
@@ -54,6 +59,9 @@ You can create your own plugins:
 Sometimes it's more convenient to build a plugin into your app. That way you
 can call your own APIs directly, without needing reflection. You can do that
 with the [plugin sdk](https://mvnrepository.com/artifact/com.squareup.stoic/plugin-sdk).
+
+To use Stoic with non-debuggable builds, include the [app sdk](https://mvnrepository.com/artifact/com.squareup.stoic/app-sdk)
+in your app and register the `StoicBroadcastReceiver` in your AndroidManifest.xml.
 
 Stoic works on any API 29+ (Android 10+) device / emulator, with any debuggable app (that I've tested so far).
 

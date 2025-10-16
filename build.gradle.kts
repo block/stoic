@@ -237,6 +237,7 @@ val buildDistribution by tasks.registering {
         ":host:main:assemble",
         ":host:main:nativeCompile",
         ":target:plugin-sdk:assemble",
+        ":target:runtime:app-sdk:assembleRelease",
         ":target:runtime:attached:apk",
         ":demo-plugin:helloworld:apk",
         ":demo-plugin:appexitinfo:apk",
@@ -288,6 +289,13 @@ val buildDistribution by tasks.registering {
             from("target/plugin-sdk/build/libs/plugin-sdk-$versionName-sources.jar")
             into("$releaseDir/sdk")
             rename { "stoic-plugin-sdk-sources.jar" }
+        }
+
+        // Copy app SDK (Android AAR library for apps to include)
+        copy {
+            from("target/runtime/app-sdk/build/outputs/aar/app-sdk-release.aar")
+            into("$releaseDir/sdk")
+            rename { "stoic-app-sdk.aar" }
         }
 
         // Copy runtime APK
