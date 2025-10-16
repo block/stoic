@@ -184,6 +184,9 @@ class StoicPluginServer(
         val args = startPlugin.pluginArgs.toTypedArray()
         val pluginMain = pluginMainClass.getDeclaredMethod("main", args.javaClass)
 
+        // Set the context classloader so plugin code can load classes from its own JAR
+        Thread.currentThread().contextClassLoader = classLoader
+
         object: StoicNamedPlugin {
           override fun run(args: List<String>): Int {
             return try {

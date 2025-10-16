@@ -1,3 +1,4 @@
+import android.os.Build
 import com.squareup.stoic.jvmti.JvmtiMethod
 import com.squareup.stoic.trace.Include
 import com.squareup.stoic.trace.IncludeEach
@@ -20,6 +21,12 @@ fun main(args: Array<String>) {
 // This verifies that we handle it correctly with a method known to suffer from this problem.
 fun testDuplicateArguments() {
   eprintln("testDuplicateArguments")
+  if (Build.VERSION.SDK_INT < 30) {
+    // testDuplicateArguments uses a method signature that changed between API levels
+    // The signature we test for is only available on API 30+ (Android 11+)
+    eprintln("skipping (requires API 30+)")
+    return
+  }
 
   val method = JvmtiMethod.bySig(
     "android/view/AccessibilityInteractionController\$AccessibilityNodePrefetcher.prefetchAccessibilityNodeInfos(Landroid/view/View;Landroid/view/accessibility/AccessibilityNodeInfo;Ljava/util/List;)V"

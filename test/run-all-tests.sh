@@ -20,6 +20,7 @@ TESTS=(
     "test-demo-app-without-sdk.sh"
     "test-plugin-new.sh"
     "test-without-config.sh"
+    "testsuite.sh"
 )
 
 for test in "${TESTS[@]}"; do

@@ -101,6 +101,39 @@ throwJvmtiError(JNIEnv* jni, int result, const char* desc) {
   CHECK(exc.get() != NULL);
   jni->Throw(exc.get());
 }
+
+// Helper to ensure a specific capability is enabled, adding it on-demand if not already present
+// Returns JVMTI_ERROR_NONE if the capability is available (or was successfully added)
+// Returns the actual error code from GetCapabilities or AddCapabilities otherwise
+static jvmtiError
+ensureCapability(jvmtiEnv* jvmti, jvmtiCapabilities* cap) {
+  // First check if we already have the capability
+  jvmtiCapabilities current_caps;
+  memset(&current_caps, 0, sizeof(jvmtiCapabilities));
+  jvmtiError err = jvmti->GetCapabilities(&current_caps);
+  if (err != JVMTI_ERROR_NONE) {
+    return err;
+  }
+
+  // Check if we already have this capability by comparing the structs
+  // We'll use the fact that capabilities are boolean fields in the struct
+  unsigned char* current_ptr = (unsigned char*)&current_caps;
+  unsigned char* requested_ptr = (unsigned char*)cap;
+  bool already_have = true;
+  for (size_t i = 0; i < sizeof(jvmtiCapabilities); i++) {
+    if (requested_ptr[i] && !current_ptr[i]) {
+      already_have = false;
+      break;
+    }
+  }
+
+  if (already_have) {
+    return JVMTI_ERROR_NONE;
+  }
+
+  // Try to add the capability
+  return jvmti->AddCapabilities(cap);
+}
  
 jvmtiIterationControl JNICALL
 jvmtiHeapObjectCallback_tagUnconditionally(jlong class_tag, jlong size, jlong* tag_ptr, void* user_data) {
@@ -429,6 +462,15 @@ Jvmti_VirtualMachine_nativeGetLocalVariables(JNIEnv *jni, jobject vmClass, jlong
   jint entryCount = -1;
   jvmtiLocalVariableEntry* table = NULL;
 
+  // Ensure we have the capability to access local variables (needed for GetLocalVariableTable)
+  jvmtiCapabilities caps = {0};
+  caps.can_access_local_variables = JNI_TRUE;
+  jvmtiError capErr = ensureCapability(jvmti, &caps);
+  if (capErr != JVMTI_ERROR_NONE) {
+    throwJvmtiError(jni, capErr, "jvmti->AddCapabilities(can_access_local_variables)");
+    return NULL;
+  }
+
   // This can fail if local variable information isn't available
   JVMTI_THROW_IF_ERROR(jvmti->GetLocalVariableTable(castMethodId, &entryCount, &table), return NULL);
 
@@ -467,6 +509,16 @@ Jvmti_VirtualMachine_nativeGetLocalVariables(JNIEnv *jni, jobject vmClass, jlong
 JNIEXPORT jobject JNICALL
 Jvmti_VirtualMachine_nativeGetLocalObject(JNIEnv *jni, jobject vmClass, jthread thread, jint height, jint slot) {
   jvmtiEnv* jvmti = gdata->jvmti;
+
+  // Ensure we have the capability to access local variables (needed for GetLocalObject)
+  jvmtiCapabilities caps = {0};
+  caps.can_access_local_variables = JNI_TRUE;
+  jvmtiError capErr = ensureCapability(jvmti, &caps);
+  if (capErr != JVMTI_ERROR_NONE) {
+    throwJvmtiError(jni, capErr, "jvmti->AddCapabilities(can_access_local_variables)");
+    return NULL;
+  }
+
   jint frameCount = -1;
   CHECK_JVMTI(jvmti->GetFrameCount(thread, &frameCount));
   jobject result = NULL;
@@ -477,6 +529,16 @@ Jvmti_VirtualMachine_nativeGetLocalObject(JNIEnv *jni, jobject vmClass, jthread 
 JNIEXPORT jint JNICALL
 Jvmti_VirtualMachine_nativeGetLocalInt(JNIEnv *jni, jobject vmClass, jthread thread, jint height, jint slot) {
   jvmtiEnv* jvmti = gdata->jvmti;
+
+  // Ensure we have the capability to access local variables (needed for GetLocalInt)
+  jvmtiCapabilities caps = {0};
+  caps.can_access_local_variables = JNI_TRUE;
+  jvmtiError capErr = ensureCapability(jvmti, &caps);
+  if (capErr != JVMTI_ERROR_NONE) {
+    throwJvmtiError(jni, capErr, "jvmti->AddCapabilities(can_access_local_variables)");
+    return 0;
+  }
+
   jint frameCount = -1;
   CHECK_JVMTI(jvmti->GetFrameCount(thread, &frameCount));
   jint result = 0;
@@ -487,6 +549,16 @@ Jvmti_VirtualMachine_nativeGetLocalInt(JNIEnv *jni, jobject vmClass, jthread thr
 JNIEXPORT jlong JNICALL
 Jvmti_VirtualMachine_nativeGetLocalLong(JNIEnv *jni, jobject vmClass, jthread thread, jint height, jint slot) {
   jvmtiEnv* jvmti = gdata->jvmti;
+
+  // Ensure we have the capability to access local variables (needed for GetLocalLong)
+  jvmtiCapabilities caps = {0};
+  caps.can_access_local_variables = JNI_TRUE;
+  jvmtiError capErr = ensureCapability(jvmti, &caps);
+  if (capErr != JVMTI_ERROR_NONE) {
+    throwJvmtiError(jni, capErr, "jvmti->AddCapabilities(can_access_local_variables)");
+    return 0;
+  }
+
   jint frameCount = -1;
   CHECK_JVMTI(jvmti->GetFrameCount(thread, &frameCount));
   jlong result = 0;
@@ -497,6 +569,16 @@ Jvmti_VirtualMachine_nativeGetLocalLong(JNIEnv *jni, jobject vmClass, jthread th
 JNIEXPORT jfloat JNICALL
 Jvmti_VirtualMachine_nativeGetLocalFloat(JNIEnv *jni, jobject vmClass, jthread thread, jint height, jint slot) {
   jvmtiEnv* jvmti = gdata->jvmti;
+
+  // Ensure we have the capability to access local variables (needed for GetLocalFloat)
+  jvmtiCapabilities caps = {0};
+  caps.can_access_local_variables = JNI_TRUE;
+  jvmtiError capErr = ensureCapability(jvmti, &caps);
+  if (capErr != JVMTI_ERROR_NONE) {
+    throwJvmtiError(jni, capErr, "jvmti->AddCapabilities(can_access_local_variables)");
+    return 0.0f;
+  }
+
   jint frameCount = -1;
   CHECK_JVMTI(jvmti->GetFrameCount(thread, &frameCount));
   jfloat result = 0.0f;
@@ -507,6 +589,16 @@ Jvmti_VirtualMachine_nativeGetLocalFloat(JNIEnv *jni, jobject vmClass, jthread t
 JNIEXPORT jdouble JNICALL
 Jvmti_VirtualMachine_nativeGetLocalDouble(JNIEnv *jni, jobject vmClass, jthread thread, jint height, jint slot) {
   jvmtiEnv* jvmti = gdata->jvmti;
+
+  // Ensure we have the capability to access local variables (needed for GetLocalDouble)
+  jvmtiCapabilities caps = {0};
+  caps.can_access_local_variables = JNI_TRUE;
+  jvmtiError capErr = ensureCapability(jvmti, &caps);
+  if (capErr != JVMTI_ERROR_NONE) {
+    throwJvmtiError(jni, capErr, "jvmti->AddCapabilities(can_access_local_variables)");
+    return 0.0;
+  }
+
   jint frameCount = -1;
   CHECK_JVMTI(jvmti->GetFrameCount(thread, &frameCount));
   jdouble result = 0.0;
