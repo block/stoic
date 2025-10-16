@@ -13,7 +13,7 @@ echo "This will run all tests on API 29 and API 34"
 echo ""
 
 # API levels to test
-API_LEVELS=(29 34)
+API_LEVELS=(29 30 35)
 
 # Track failures
 FAILED_API_LEVELS=()
@@ -25,7 +25,7 @@ for api in "${API_LEVELS[@]}"; do
     echo "================================================"
     echo ""
 
-    if "$script_dir/with-emulator.sh" "$api" "$script_dir/run-all-tests.sh"; then
+    if "$script_dir/with-emulator.sh" "$api" "$script_dir/run-all-tests-on-connected-device.sh"; then
         echo ""
         echo "✓ All tests PASSED on API $api"
     else

@@ -15,7 +15,7 @@ if [ "$(realpath "$(which stoic)")" != "$(realpath "$script_dir/../build/distrib
 fi
 
 "$script_dir"/shellcheck.sh
-"$script_dir"/run-all-tests.sh
+"$script_dir"/emulator-tests.sh
 
 # TODO: these tests require functionality not available on older versions of
 #   Android

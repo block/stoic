@@ -30,7 +30,7 @@ apiLevels.forEach { config ->
         commandLine(
             "./with-emulator.sh",
             config.apiLevel.toString(),
-            "./run-all-tests.sh"
+            "./run-all-tests-on-connected-device.sh"
         )
 
         doFirst {

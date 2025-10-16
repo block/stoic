@@ -229,12 +229,14 @@ echo "================================================"
 echo ""
 
 # Set environment variables for the test script
-export ADB_SERIAL="$EMULATOR_SERIAL"
+export ANDROID_SERIAL="$EMULATOR_SERIAL"
 export API_LEVEL="$API_LEVEL"
+
+# Uncomment for better native stack traces
+# adb shell su 0 setenforce 0
 
 # Run the test script
 set +e
-adb shell su 0 setenforce 0
 "$TEST_SCRIPT" "${TEST_ARGS[@]}"
 TEST_EXIT_CODE=$?
 set -e

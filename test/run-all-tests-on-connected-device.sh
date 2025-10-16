@@ -7,8 +7,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "========================================"
-echo "Running all Stoic tests on API $API_LEVEL"
-echo "Device: $ADB_SERIAL"
+echo "Running all Stoic tests"
 echo "========================================"
 echo ""
 

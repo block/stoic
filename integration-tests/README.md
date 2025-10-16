@@ -36,10 +36,7 @@ cd test
 ./with-emulator.sh 29 ./test-demo-app-without-sdk.sh
 
 # Run all tests on API 34
-./with-emulator.sh 34 ./run-all-tests.sh
-
-# Pass arguments to your test script
-./with-emulator.sh 29 ./test-demo-app-without-sdk.sh --verbose
+./with-emulator.sh 34 ./run-all-tests-on-connected-device.sh
 ```
 
 The script automatically:
@@ -88,11 +85,11 @@ For convenience, Gradle tasks wrap the standalone script:
 2. Creates an AVD using `avdmanager` (if it doesn't exist)
 3. Starts the emulator in headless mode with optimized flags
 4. Waits for the device to appear and boot completely
-5. Runs your test script with environment variables set (`ADB_SERIAL`, `API_LEVEL`)
+5. Runs your test script with environment variables set (`ANDROID_SERIAL`, `API_LEVEL`)
 6. Cleans up by killing the emulator on exit (success or failure)
 
 **Features:**
-- Automatic AVD creation with sensible defaults (x86_64, Pixel 2)
+- Automatic AVD creation with sensible defaults
 - Graceful cleanup via trap handlers
 - Progress indicators during boot
 - Exits with the same code as your test script
@@ -107,7 +104,7 @@ cat > my-test.sh << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Running on device: $ADB_SERIAL"
+echo "Running on device: $ANDROID_SERIAL"
 echo "API Level: $API_LEVEL"
 adb shell getprop ro.build.version.sdk
 # Your test commands here...
@@ -120,7 +117,7 @@ chmod +x my-test.sh
 ```
 
 The following environment variables are automatically set for your test script:
-- `ADB_SERIAL` - The emulator device serial (e.g., `emulator-5554`)
+- `ANDROID_SERIAL` - The emulator device serial (e.g., `emulator-5554`)
 - `API_LEVEL` - The Android API level (e.g., `29`, `34`)
 
 ## CI Integration
@@ -220,12 +217,12 @@ Edit both:
 
 ```
 test/
-├── emulator-tests.sh             # Run all tests on API 29 & 34 (main entry point)
-├── with-emulator.sh              # Standalone emulator manager
-├── run-all-tests.sh              # Run all test suites (used by with-emulator.sh)
-├── test-demo-app-without-sdk.sh  # Individual test suite
-├── test-plugin-new.sh            # Individual test suite
-├── test-without-config.sh        # Individual test suite
+├── emulator-tests.sh                       # Run all tests on API 29, 30, 35 (main entry point)
+├── with-emulator.sh                        # Standalone emulator manager
+├── run-all-tests-on-connected-device.sh    # Run all test suites (used by with-emulator.sh)
+├── test-demo-app-without-sdk.sh            # Individual test suite
+├── test-plugin-new.sh                      # Individual test suite
+├── test-without-config.sh                  # Individual test suite
 └── ...
 
 integration-tests/
@@ -235,7 +232,7 @@ integration-tests/
 
 The design separates concerns:
 - **Emulator management** lives in `test/with-emulator.sh` (no Gradle dependency)
-- **Test orchestration** in `test/emulator-tests.sh` and `test/run-all-tests.sh`
+- **Test orchestration** in `test/emulator-tests.sh` and `test/run-all-tests-on-connected-device.sh`
 - **Individual test suites** are standalone scripts in `test/`
 - **Gradle tasks** are thin wrappers for developer convenience
 
