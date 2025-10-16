@@ -11,6 +11,11 @@ import com.squareup.stoic.threadlocals.jvmti
  *
  * The pointer is just the pair of (Thread, frame-height), so if the exact same frame (that is, same
  * method-id, location) then everything will work fine. I'd say it's hacky to depend on that though!
+ *
+ * TODO: this needs to be rethought - the location currently doesn't necessarily match the height
+ *   within the stack. The reason is that the location might correspond to a call
+ *   (e.g. method-entry) without a corresponding stack frame. This can happen for example when a
+ *   native method is invoked.
  */
 class StackFrame(val thread: Thread, val height: Int, val location: Location) {
   val stackTrace get(): List<StackTraceElement> {

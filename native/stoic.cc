@@ -688,12 +688,14 @@ Jvmti_VirtualMachine_nativeGetClassSignature(JNIEnv *jni, jobject vmClass, jclas
 
 JNIEXPORT void JNICALL
 Jvmti_VirtualMachine_nativeMethodEntryCallbacks(JNIEnv *jni, jobject vmClass, jthread thread, jboolean isEnabled) {
-  CHECK_JVMTI(gdata->jvmti->SetEventNotificationMode(isEnabled ? JVMTI_ENABLE : JVMTI_DISABLE, JVMTI_EVENT_METHOD_ENTRY, thread));
+  // This requires the can_generate_method_entry_events capability, which must be added at load time.
+  JVMTI_THROW_IF_ERROR(gdata->jvmti->SetEventNotificationMode(isEnabled ? JVMTI_ENABLE : JVMTI_DISABLE, JVMTI_EVENT_METHOD_ENTRY, thread), return);
 }
 
 JNIEXPORT void JNICALL
 Jvmti_VirtualMachine_nativeMethodExitCallbacks(JNIEnv *jni, jobject vmClass, jthread thread, jboolean isEnabled) {
-  CHECK_JVMTI(gdata->jvmti->SetEventNotificationMode(isEnabled ? JVMTI_ENABLE : JVMTI_DISABLE, JVMTI_EVENT_METHOD_EXIT, thread));
+  // This requires the can_generate_method_exit_events capability, which must be added at load time.
+  JVMTI_THROW_IF_ERROR(gdata->jvmti->SetEventNotificationMode(isEnabled ? JVMTI_ENABLE : JVMTI_DISABLE, JVMTI_EVENT_METHOD_EXIT, thread), return);
 }
 
 struct AgentInfo {
@@ -759,10 +761,18 @@ CbMethodEntry(
   jint count = -1;
   CHECK_JVMTI(jvmti->GetFrameCount(thread, &count));
 
+  // Note: The methodId parameter tells us which method was entered, but this may not
+  // match the top stack frame (frame 0) when inspected via GetFrameLocation.
+  // This occurs for native methods, especially intrinsics like System.arraycopy:
+  // - JVMTI fires MethodEntry for the native method (e.g., System.arraycopy)
+  // - But GetFrameLocation returns the calling Java method (e.g., Arrays.copyOf)
+  // - Native methods may not appear as distinct stack frames, particularly when
+  //   inlined/intrinsified by the JVM
+  // We trust the methodId parameter from JVMTI rather than attempting to verify it
+  // against the stack, as the stack may not reflect native method calls as separate frames.
   jmethodID frameMethodId = nullptr;
   jlocation location = -1;
   CHECK_JVMTI(jvmti->GetFrameLocation(thread, 0, &frameMethodId, &location));
-  CHECK_EQ(frameMethodId, methodId);
 
   jlong methodIdAsLong = reinterpret_cast<jlong>(methodId);
 
@@ -816,10 +826,18 @@ CbMethodExit(
   jint count = -1;
   CHECK_JVMTI(jvmti->GetFrameCount(thread, &count));
 
+  // Note: The methodId parameter tells us which method was exited, but this may not
+  // match the top stack frame (frame 0) when inspected via GetFrameLocation.
+  // This occurs for native methods, especially intrinsics like System.arraycopy:
+  // - JVMTI fires MethodExit for the native method
+  // - But GetFrameLocation returns the calling Java method that invoked it
+  // - Native methods may not appear as distinct stack frames, particularly when
+  //   inlined/intrinsified by the JVM
+  // We trust the methodId parameter from JVMTI rather than attempting to verify it
+  // against the stack, as the stack may not reflect native method calls as separate frames.
   jmethodID frameMethodId = nullptr;
   jlocation location = -1;
   CHECK_JVMTI(jvmti->GetFrameLocation(thread, 0, &frameMethodId, &location));
-  CHECK_EQ(frameMethodId, methodId);
   jlong methodIdAsLong = reinterpret_cast<jlong>(methodId);
 
   char* signature = NULL;
@@ -1179,15 +1197,38 @@ static jint AgentStart(JavaVM* vm, char* options, [[maybe_unused]] void* reserve
 
   jvmtiCapabilities caps = {
     .can_tag_objects = JNI_TRUE,
-    // Not available on older versions of Android
-    //.can_access_local_variables = JNI_TRUE,
     .can_generate_breakpoint_events = JNI_TRUE,
-    // Not available on older versions of Android
-    //.can_generate_method_entry_events = JNI_TRUE,
-    //.can_generate_method_exit_events = JNI_TRUE,
+    .can_generate_method_entry_events = JNI_TRUE,
+    .can_generate_method_exit_events = JNI_TRUE,
+    // Only available on API 30+ - needed for ForceEarlyReturn* APIs
     //.can_force_early_return = JNI_TRUE,
   };
   CHECK_JVMTI(jvmti->AddCapabilities(&caps) != JVMTI_ERROR_NONE);
+
+//{
+//  // Entry/exit capabilities must be added at load time, but they aren't
+//  // available on API 29 and below
+
+//  jvmtiCapabilities entryExitCaps = {
+//    .can_generate_method_entry_events = JNI_TRUE,
+//    .can_generate_method_exit_events = JNI_TRUE,
+//  };
+
+//  int entryExitCapsResult = jvmti->AddCapabilities(&entryExitCaps);
+//  if (entryExitCapsResult != JVMTI_ERROR_NONE) {
+//    __android_log_print(
+//        ANDROID_LOG_WARN,
+//        "stoic",
+//        "Failed to add method entry/exit capabilities (this is expected on API 29 and below)\n"
+//    );
+//  } else {
+//    __android_log_print(
+//        ANDROID_LOG_WARN,
+//        "stoic",
+//        "Method entry/exit capabilities added successfully\n"
+//    );
+//  }
+//}
 
   jvmtiEventCallbacks cb{
     .VMInit = CbVmInit,

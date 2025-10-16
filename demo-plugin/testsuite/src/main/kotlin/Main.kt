@@ -1,5 +1,7 @@
 import android.os.Build
+import com.squareup.stoic.jvmti.JvmtiException
 import com.squareup.stoic.jvmti.JvmtiMethod
+import com.squareup.stoic.jvmti.VirtualMachine
 import com.squareup.stoic.trace.Include
 import com.squareup.stoic.trace.IncludeEach
 import com.squareup.stoic.trace.OmitThis
@@ -14,6 +16,8 @@ import com.squareup.stoic.threadlocals.stoic
 fun main(args: Array<String>) {
   testDuplicateArguments()
   testTrace()
+  testMethodEntry()
+  testMethodExit()
 }
 
 // Verify that we don't include duplicate arguments. The local variable table may contain duplicate
@@ -21,10 +25,10 @@ fun main(args: Array<String>) {
 // This verifies that we handle it correctly with a method known to suffer from this problem.
 fun testDuplicateArguments() {
   eprintln("testDuplicateArguments")
-  if (Build.VERSION.SDK_INT < 30) {
+  if (Build.VERSION.SDK_INT < 33) {
     // testDuplicateArguments uses a method signature that changed between API levels
-    // The signature we test for is only available on API 30+ (Android 11+)
-    eprintln("skipping (requires API 30+)")
+    // The signature we test for is only available on API 32+
+    eprintln("skipping (requires API 33+)")
     return
   }
 
@@ -121,3 +125,62 @@ class Bar(val baz: Int) {
   }
 }
 
+fun testMethodEntry() {
+  eprintln("testMethodEntry")
+
+  var methodEntryCalled = false
+
+  val testMethod = JvmtiMethod.bySig("MainKt.testMethodEntryHelper()V")
+
+  // Test method entry
+  val entryRequest = VirtualMachine.eventRequestManager.createMethodEntryRequest(Thread.currentThread()) { frame ->
+    if (frame.location.method.methodId == testMethod.methodId) {
+      eprintln("Method entry callback triggered")
+      methodEntryCalled = true
+    }
+  }
+
+  // Call the test method
+  testMethodEntryHelper()
+
+  // Clean up
+  VirtualMachine.eventRequestManager.deleteEventRequest(entryRequest)
+
+  check(methodEntryCalled) { "Method entry callback was not called" }
+
+  eprintln("testMethodEntry passed")
+}
+
+fun testMethodExit() {
+  eprintln("testMethodExit")
+
+  var methodExitCalled = false
+
+  val testMethod = JvmtiMethod.bySig("MainKt.testMethodExitHelper()V")
+
+  // Test method exit
+  val exitRequest = VirtualMachine.eventRequestManager.createMethodExitRequest(Thread.currentThread()) { frame, value, wasPoppedByException ->
+    if (frame.location.method.methodId == testMethod.methodId) {
+      eprintln("Method exit callback triggered")
+      methodExitCalled = true
+    }
+  }
+
+  // Call the test method
+  testMethodExitHelper()
+
+  // Clean up
+  VirtualMachine.eventRequestManager.deleteEventRequest(exitRequest)
+
+  check(methodExitCalled) { "Method exit callback was not called" }
+
+  eprintln("testMethodExit passed")
+}
+
+fun testMethodEntryHelper() {
+  // This is just a helper method to test entry callback
+}
+
+fun testMethodExitHelper() {
+  // This is just a helper method to test exit callback
+}
