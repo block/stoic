@@ -10,97 +10,64 @@
 >
 > "Fire tests gold and adversity tests the brave."
 
-*-Seneca the Younger (c. 4 BC - AD 65), Roman statesman and Stoic philosopher*
+*- Seneca the Younger (c. 4 BC - AD 65), Roman statesman and Stoic philosopher*
 
+Run code inside Android processes from your laptop. No APK modifications needed for debuggable apps.
 
+Stoic opens a communication channel into your app. Write plugins that hook methods, inspect heap objects, or call internal APIs—all from the command line.
 
+First attach takes 2-3 seconds. After that, under a second.
 
-## Introduction
+## Quick Start
 
-Stoic provides communication channels from your laptop into app processes.
-It lets you look within your Android processes, understand their behavior, and
-solve difficult problems.
+```bash
+brew install block/tap/stoic
+stoic helloworld
+```
 
-Stoic establishes its communication channel in one of two ways:
-1. On debuggable APKs, Stoic can leverage debug APIs to establish a channel
-   without any modifications to the APK
-2. You can compile the Stoic app SDK into a non-debuggable APK, which will
-   register a BroadcastReceiver, and Stoic will use that to establish a channel
-   on-demand.
+This runs against a demo app. For your app: `stoic --pkg com.yourapp helloworld`
 
-If the debug API method is used, then your plugin will have access to extra
-capabilities - normally only available to a debugger.
-
-The BroadcastReceiver approach is lazy - no Stoic code runs in your app until
-Stoic actually tries to attach, and it can even start your process if it's not
-already running.
-
-You can write plugins that
-1. provide command-line access to APIs normally only available inside the process
-2. leverage debugger functionality (e.g. use breakpoints to hook arbitrary methods)
-3. examine the internal state of a process without restarting the process
-
-Stoic is fast. The first time you run a Stoic plugin in a process it will take 2-3
-seconds to attach. Thereafter, Stoic plugins typically run in less than a second.
-
-## Getting started
-
-1. Install with [Homebrew](https://brew.sh/): `brew install block/tap/stoic`
-2. Run your first Stoic plugin: `stoic helloworld`
-3. When you don't specify a package, Stoic injects itself into `com.squareup.stoic.demoapp.withoutsdk`
-   by default - a simple app bundled with Stoic. Run `stoic --pkg <your-app> helloworld` to inject into your
-   own app instead.
-
-You can create your own plugins:
-1. Create a new plugin: `stoic plugin --new scratch`
-2. Run your plugin with: `stoic scratch`
-3. Open up `~/.config/stoic/plugin/scratch` with Android Studio to modify this plugin and explore what Stoic can do.
-
-Sometimes it's more convenient to build a plugin into your app. That way you
-can call your own APIs directly, without needing reflection. You can do that
-with the [plugin sdk](https://mvnrepository.com/artifact/com.squareup.stoic/plugin-sdk).
-
-To use Stoic with non-debuggable builds, include the [app sdk](https://mvnrepository.com/artifact/com.squareup.stoic/app-sdk)
-in your app and register the `StoicBroadcastReceiver` in your AndroidManifest.xml.
-
-Stoic works on any API 26+ (Android 8.0+) device / emulator, with any debuggable app (that I've tested so far).
-
+Works on API 26+ (Android 8.0+) with debuggable apps. For non-debuggable apps,
+add the
+[app-sdk](https://mvnrepository.com/artifact/com.squareup.stoic/app-sdk).
 
 ## Bundled Plugins
 
-Stoic bundles a few plugins:
-1. [appexitinfo](https://github.com/square/stoic/blob/main/docs/APPEXITINFO.md) - command-line access to the ApplicationExitInfo API
-2. breakpoint - print when methods get called, optionally with arguments/return-value/stack-trace
-3. crasher - see how your app handles various types of crashes
+- [appexitinfo](docs/APPEXITINFO.md) - query ApplicationExitInfo API
+- breakpoint - hook method calls, print args/returns/stacktraces
+- crasher - test crash handling
 
+## Writing Plugins
 
-## Authoring Plugins
+Plugins are Java/Kotlin main functions. Use `com.squareup.stoic.jvmti` for debugger features:
 
-Each plugin is a normal Java `main` function. You access debugger functionality via the `com.squareup.stoic.jvmti` package. e.g.
-```
-// get callbacks whenever any method of interest is called
-val method = jvmti.virtualMachine.methodBySig("android/view/InputEventReceiver.dispatchInputEvent(ILandroid/view/InputEvent;)V")
-jvmti.breakpoint(method.startLocation) { frame ->
+```kotlin
+// Hook a method
+InputEventReceiver.dispatchInputEvent.forEachInvocation {
   println("dispatchInputEvent called")
 }
 
-// iterate over each bitmap in the heap
+// Scan the heap
 for (bitmap in jvmti.instances(Bitmap::class.java)) {
-  println("$bitmap: size=${bitmap.allocationByteCount}")
+  println("$bitmap: ${bitmap.allocationByteCount} bytes")
 }
 ```
 
-## Architecture
+Create your own plugin:
+```bash
+stoic plugin --new scratch
+stoic scratch
+```
 
-The primary technologies powering Stoic are
-[JVMTI](https://en.wikipedia.org/wiki/Java_Virtual_Machine_Tools_Interface),
-[Unix Domain Sockets](https://en.wikipedia.org/wiki/Unix_domain_socket), and
-[run-as](https://cs.android.com/android/platform/superproject/main/+/main:system/core/run-as/run-as.cpp).
-Stoic is written in Kotlin and uses
-[Clikt](https://ajalt.github.io/clikt/) for command-line parsing and
-[GraalVM](https://www.graalvm.org/) for snappy start-ups.
+Alternatively, use the
+[plugin-sdk](https://mvnrepository.com/artifact/com.squareup.stoic/plugin-sdk)
+to register plugins inside your app.
 
-The first time you run Stoic on a process it will attach a jvmti agent which
-will start a server inside the process. We connect to this server through a
-unix domain socket, and multiplex stdin/stdout/stderr over this connection. See
-https://github.com/square/stoic/blob/main/docs/ARCHITECTURE.md for more details.
+## How It Works
+
+- Debuggable apps: Stoic attaches a JVMTI agent to your process, which starts a server
+- Non-debuggable apps: The app-sdk registers a BroadcastReceiver, which starts a server
+- Server connection happens via unix domain sockets - no internet permission needed
+- Stoic sends plugin APKs to the server, which then loads them via DexClassLoader
+
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md).

@@ -1,77 +1,42 @@
-# Stoic Architecture
+# Architecture
 
-At its core, Stoic is flexible interprocess communication (IPC) and remote
-procedure calls (RPC). Stoic is a debugging tool. It trades off security in
-favor of flexibility. Don't run it in production.
+Stoic is IPC and RPC for debugging. It trades security for flexibility. Don't run it in production.
 
-Instead of requiring pre-established IPC/RPC servers, Stoic uses JVMTI to
-inject code and establish a server in existing debuggable processes. Instead of
-calling existing functions like traditional IPC/RPC, Stoic can send code over
-to be run.
+Instead of requiring a pre-established server, Stoic injects a server into
+running processes via JVMTI (you can use the app-sdk for non-debuggable apps).
+Instead of calling predefined functions, you send code to execute.
 
-Functions are not limited to single input / single output. Stoic provides
-multiplexed bidirectional communication. Stoic provides traditional
-command-line-interface (CLI) style stdin/stdout/stderr
-
-Stoic provides in-process access to debugging APIs (JVMTI) so you can do things
-like get callbacks or iterate over objects in the heap.
+Communication is bidirectional and multiplexed—stdin/stdout/stderr work
+normally. You get access to JVMTI debugging APIs.
 
 ```
-                  Process / Machine
-                      boundary
-+------------+           |           +--------------+
-|            |           |           |  target      |
-|            |           |           |              |
-| +--------+ | --------- | --------> | +--------+   |
-| |  host  | | <-------- | --------- | | server |   |
-| +--------+ |           |           | +--------+   |
-|            |           |           |              |
-+------------+           |           +--------------+
+     Laptop          |        Android Process
+  +---------+        |        +---------+
+  |  host   | <------|------> | target  |
+  +---------+        |        +---------+
 ```
 
-The stoic "host" is the thing that kicks off the RPC (typically your laptop). The stoic "target" is the
-thing the RPC runs within (the Android process). In order to provide RPC functionality, Stoic depends on:
-1. An injection mechanism - JVMTI
-2. A bidirectional transport - Unix Domain Sockets
+Your laptop is a client that talks to the server (injected into the app).
 
-## Steps in running a plugin
+## Running a Plugin
 
-With the aforementioned dependencies in place, Stoic will:
-1. Inject a server inside the target
-2. The server will then notify the host that it's ready for connection
-3. The host will then connect to the server and send it a StartPlugin request
-   containing the name and timestamp of the code to be run.
-4. If the plugin isn't available, the server will respond with an error.
-5. The host will send a LoadPlugin request, along with the contents of the
-   plugin apk, and then resend the StartPlugin request
-6. The host and server will exchange multiplexed IO - i.e.
-   stdin/stdout/stderr or some mutually agreed upon protocol.
-7. When the plugin finishes (either normally or abnormally) it sends a
-   PluginFinished packet and the connection terminates.
-8. The server will continue to service connection requests in the
-    target, making future connections faster.
+1. Inject server into target process
+2. Server signals ready
+3. Host sends StartPlugin request (plugin name + timestamp)
+4. If plugin missing, host sends LoadPlugin with APK contents
+5. Multiplexed I/O flows (stdin/stdout/stderr)
+6. Plugin finishes, sends PluginFinished
+7. Server stays alive for faster subsequent runs
 
 ## Injection
 
-Stoic currently injects code into Android apps via JVMTI, using the
-`attach-agent` mechanism documented in
-https://source.android.com/docs/core/runtime/art-ti. Though Android heavily
-restricts communication with package processes, Stoic can usually work even on
-non-rooted devices through careful use of `run-as`. For example, Stoic copies
-its jvmti agent over to the package directory with:
-```
-cat stoic-jvmti.so | run-as com.example sh -c 'cat > stoic/stoic-jvmti.so'
-```
+Uses JVMTI's `attach-agent` ([docs](https://source.android.com/docs/core/runtime/art-ti)). Works on non-rooted devices via `run-as`.
 
-## Bidirectional communication
+## Communication
 
-Stoic establishes bidirectional communication via Unix Domain Sockets.
-Android will not allow the shell user to directly connect to a Unix Domain
-Socket owned by a package (or vice versa), but you can still use `adb forward`
-to forward a port to the unix domain socket. This works without any `run-as`
-tricks. This way we can connect directly to the server without going through
-`adb shell`.
+Unix domain sockets. Android won't let shell and package users talk directly,
+but `adb forward` allows our laptop to talk directly to the package:
 
-```
+```bash
 adb forward tcp:0 localabstract:/stoic/...
 ```
