@@ -111,7 +111,7 @@ fun main(args: Array<String>) {
       "-C", extractedDir.absolutePath, "--strip-components", "1"), stoicDir))
   }
 
-  val binPath = extractedDir.resolve("bin").absolutePath
+  val binPath = extractedDir.resolve("bin/darwin-arm64").absolutePath
   val newPath = "$binPath:${System.getenv("PATH")}"
   val env = mapOf("PATH" to newPath)
 
