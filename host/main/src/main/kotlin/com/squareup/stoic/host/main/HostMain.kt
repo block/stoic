@@ -826,9 +826,10 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
     throw PithyException("At most one of --demo/--builtin/--user may be specified")
   }
 
-  if (pluginName.endsWith(".jar")) {
+  if (pluginName.endsWith(".jar") || pluginName.endsWith(".apk")) {
     if (!entrypoint.userAllowed) {
-      throw PithyException("jar plugin are considered user - --demo/--builtin options are incompatible")
+      val fileType = if (pluginName.endsWith(".jar")) "jar" else "apk"
+      throw PithyException("$fileType plugin are considered user - --demo/--builtin options are incompatible")
     }
 
     val file = File(pluginName)
