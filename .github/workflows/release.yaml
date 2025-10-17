@@ -102,3 +102,12 @@ jobs:
             --notes "Release bundle including Maven-published JAR and other artifacts."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Homebrew tap update
+        if: ${{ !endsWith(steps.version.outputs.version, '-SNAPSHOT') }}
+        run: |
+          gh workflow run update-stoic.yaml \
+            --repo block/homebrew-tap \
+            --field tag=${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
