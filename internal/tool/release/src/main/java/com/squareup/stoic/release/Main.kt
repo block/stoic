@@ -47,18 +47,6 @@ fun main(args: Array<String>) {
   println("    • Update Homebrew formula")
   println("    • Merge to main and bump version")
   println()
-  print("Do you want to proceed with this release? (yes/no): ")
-  System.out.flush()
-
-  val response = readLine()?.trim()?.lowercase()
-  if (response != "yes") {
-    println("Release cancelled.")
-    exitProcess(0)
-  }
-
-  println()
-  println("Starting release process...")
-  println()
 
   println("""
     If you want to abandon the release, you can delete the artifacts directory with:
@@ -73,7 +61,6 @@ fun main(args: Array<String>) {
 
   """.trimIndent())
 
-  ensureCleanGitRepo(stoicDir)
   val artifactsDir = stoicDir.resolve("releases/$releaseVersion")
 
   if (artifactsDir.exists()) {
@@ -106,12 +93,31 @@ fun main(args: Array<String>) {
 
   lastStep()?.let { println("Resuming from step: $it") }
 
+  step(Step.PROMPT) {
+    print("Do you want to proceed with this release? (yes/no): ")
+    System.out.flush()
+
+    val response = readLine()?.trim()?.lowercase()
+    if (response != "yes") {
+      println("Release cancelled.")
+      exitProcess(0)
+    }
+
+    println()
+    println("Starting release process...")
+    println()
+  }
+
   step(Step.SHELLCHECK) {
     check(runCommand(listOf("test/shellcheck.sh"), stoicDir))
   }
 
   val releaseBranch = "release/$releaseVersion"
   step(Step.CREATE_BRANCH) {
+    // We ensure clean git repo within the create branch step so that we can
+    // modify the repo (without committing!) to help the release succeed
+    ensureCleanGitRepo(stoicDir)
+
     val branch = runCommandOutput(listOf("git", "rev-parse", "--abbrev-ref", "HEAD"), stoicDir).trim()
     val normalized = branch.removePrefix("refs/").removePrefix("heads/").removePrefix("origin/")
     require(normalized == "main") { "Must run from main branch (currently on '$normalized')" }
@@ -131,6 +137,19 @@ fun main(args: Array<String>) {
   }
 
   val commitSha = getHeadSha(stoicDir)
+
+  // Verify the commit message matches the expected release preparation commit
+  val commitMessage = runCommandOutput(listOf("git", "log", "-1", "--format=%s", commitSha), stoicDir).trim()
+  val expectedMessage = "Prepare $releaseVersion release"
+  if (commitMessage != expectedMessage) {
+    System.err.println("❌ Commit message mismatch!")
+    System.err.println("   Expected: $expectedMessage")
+    System.err.println("   Got:      $commitMessage")
+    System.err.println("   Commit:   $commitSha")
+    exitProcess(1)
+  }
+  println("✓ Verified commit message: $commitMessage")
+
   step(Step.WAIT_BUILD) {
     println("Waiting for GitHub Actions build workflow to complete...")
     val runId = waitForWorkflow("build", stoicDir, commitSha)
@@ -165,8 +184,10 @@ fun main(args: Array<String>) {
     println("✓ Using correct stoic binary from release artifacts")
     println()
 
+    // We need to run the command through `sh -c` to force executable
+    // resolution to take PATH into account.
     println("Verifying stoic version...")
-    val versionOutput = runCommandOutput(listOf("stoic", "--version"), stoicDir, env).trim()
+    val versionOutput = runCommandOutput(listOf("sh", "-c", "stoic --version"), stoicDir, env).trim()
     println("stoic --version: $versionOutput")
     if (!versionOutput.contains(releaseVersion)) {
       System.err.println("❌ Version mismatch! Expected $releaseVersion but got: $versionOutput")
@@ -444,6 +465,7 @@ fun waitForWorkflowInRepo(
 
 // Order of steps for resume logic
 private enum class Step {
+  PROMPT,
   SHELLCHECK,
   CREATE_BRANCH,
   WAIT_BUILD,
