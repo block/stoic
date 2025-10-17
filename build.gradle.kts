@@ -1,5 +1,6 @@
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
@@ -95,14 +96,27 @@ allprojects {
       }
     }
     configure<MavenPublishBaseExtension> {
-      configure(
-        KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true)
-      )
+      // Configure based on project type
+      if (!plugins.hasPlugin("com.android.library")) {
+        // Kotlin JVM projects
+        configure(
+          KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true)
+        )
+      } else {
+        // Android library projects
+        configure(
+          AndroidSingleVariantLibrary(
+            variant = "release",
+            sourcesJar = true,
+            publishJavadocJar = true,
+          )
+        )
+      }
 
       publishToMavenCentral(automaticRelease = true)
-
       signAllPublications()
 
+      // Common POM configuration for all projects
       pom {
         description.set("Run code within any debuggable Android process, without modifying its APK")
         name.set(project.name)
