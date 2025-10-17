@@ -130,13 +130,14 @@ echo "Project version: $VERSION"
 echo
 
 # Verify plugin-sdk JAR
-PLUGIN_SDK_JAR="$PROJECT_ROOT/target/plugin-sdk/build/libs/plugin-sdk-$VERSION.jar"
+SDK_DIR="$(dirname "$(realpath "$(which stoic)")")/../../sdk"
+PLUGIN_SDK_JAR="$SDK_DIR/stoic-plugin-sdk.jar"
 verify_jar_kotlin_version "$PLUGIN_SDK_JAR" "plugin-sdk"
 
 echo
 
 # Verify app-sdk AAR
-APP_SDK_AAR="$PROJECT_ROOT/target/runtime/app-sdk/build/outputs/aar/app-sdk-release.aar"
+APP_SDK_AAR="$SDK_DIR/stoic-app-sdk.aar"
 verify_aar_kotlin_version "$APP_SDK_AAR" "app-sdk"
 
 echo
