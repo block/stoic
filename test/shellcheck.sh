@@ -5,4 +5,4 @@ script_dir="$(dirname "$(readlink -f "$0")")"
 
 cd $script_dir/..
 shellcheck -x build.sh
-shellcheck -x prepare-release.sh
+shellcheck -x release.sh

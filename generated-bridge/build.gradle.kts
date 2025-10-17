@@ -36,8 +36,9 @@ val generateCode by tasks.registering {
         )
 
         // AGP needs version-code at configuration time, so we have versionCodeFromVersionName
-        // defined in buildSrc. We also need to be able to compute versionCodes in prepare-release.
-        // To allow us to share code, we take the buildSrc src and copy it to a generated file.
+        // defined in buildSrc. We also need to be able to compute versionCodes
+        // in the release script. To allow us to share code, we take the
+        // buildSrc src and copy it to a generated file.
 
         val versionCodeFromVersionNameText = rootProject.file(
           "buildSrc/src/main/kotlin/VersionCodeFromVersionName.kt"
