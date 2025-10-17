@@ -89,7 +89,9 @@ jobs:
             find build -type f -name stoic 2>/dev/null || echo "No stoic files found in build/"
             ls -l "$PWD/build/distributions/bin/jvm/stoic"
             export PATH="$PWD/build/distributions/bin/jvm:$PATH"
-            echo "Added stoic to PATH: $(which stoic)"
+            echo PATH="$PATH"
+            PATH="$PWD/build/distributions/bin/jvm:$PATH" echo PATH="$PATH"
+            PATH="$PWD/build/distributions/bin/jvm:$PATH" echo "Added stoic to PATH: $(which stoic)"
 
             # Run all tests
-            test/run-all-tests-on-connected-device.sh
+            PATH="$PWD/build/distributions/bin/jvm:$PATH" test/run-all-tests-on-connected-device.sh
