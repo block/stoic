@@ -77,7 +77,7 @@ jobs:
             adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done'
             echo "Emulator is ready"
 
-            export PATH="./build/distributions/bin/jvm:$PATH"
+            export PATH="$PWD/build/distributions/bin/jvm:$PATH"
 
             # Run all tests
             test/run-all-tests-on-connected-device.sh
