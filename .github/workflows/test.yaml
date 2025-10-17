@@ -77,21 +77,4 @@ jobs:
             adb wait-for-device
             adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done'
             echo "Emulator is ready"
-
-
-            # Debug: show directory structure
-            echo "=== Directory structure ==="
-            find . -name stoic -o -name "*.tar.gz" | head -20
-            echo "==========================="
-
-            # Verify stoic binary exists and add to PATH
-            echo "Current directory: $PWD"
-            find build -type f -name stoic 2>/dev/null || echo "No stoic files found in build/"
-            ls -l "$PWD/build/distributions/bin/jvm/stoic"
-            export PATH="$PWD/build/distributions/bin/jvm:$PATH"
-            echo PATH="$PATH"
-            PATH="$PWD/build/distributions/bin/jvm:$PATH" echo PATH="$PATH"
-            PATH="$PWD/build/distributions/bin/jvm:$PATH" echo "Added stoic to PATH: $(which stoic)"
-
-            # Run all tests
             PATH="$PWD/build/distributions/bin/jvm:$PATH" test/run-all-tests-on-connected-device.sh
