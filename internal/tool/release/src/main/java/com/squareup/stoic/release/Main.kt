@@ -22,6 +22,44 @@ fun main(args: Array<String>) {
   val postReleaseVersion = incrementSemver(releaseVersion)
   validateSemver(postReleaseVersion)
 
+  val releaseTag = "v$releaseVersion"
+
+  // Release artifact URLs
+  val githubReleaseUrl = "https://github.com/block/stoic/releases/tag/$releaseTag"
+  val pluginSdkUrl = "https://central.sonatype.com/artifact/com.squareup.stoic/plugin-sdk/$releaseVersion"
+  val appSdkUrl = "https://central.sonatype.com/artifact/com.squareup.stoic/app-sdk/$releaseVersion"
+  val homebrewFormulaUrl = "https://github.com/block/homebrew-tap/blob/main/Formula/stoic.rb"
+
+  println()
+  println("═══════════════════════════════════════════════════════════════")
+  println("  Stoic Release Process")
+  println("═══════════════════════════════════════════════════════════════")
+  println()
+  println("  Current version:     $currentVersion")
+  println("  Release version:     $releaseVersion")
+  println("  Post-release version: $postReleaseVersion")
+  println()
+  println("  This will:")
+  println("    • Create release branch: release/$releaseVersion")
+  println("    • Tag the release as: $releaseTag")
+  println("    • Publish to Maven Central")
+  println("    • Create GitHub release")
+  println("    • Update Homebrew formula")
+  println("    • Merge to main and bump version")
+  println()
+  print("Do you want to proceed with this release? (yes/no): ")
+  System.out.flush()
+
+  val response = readLine()?.trim()?.lowercase()
+  if (response != "yes") {
+    println("Release cancelled.")
+    exitProcess(0)
+  }
+
+  println()
+  println("Starting release process...")
+  println()
+
   println("""
     If you want to abandon the release, you can delete the artifacts directory with:
     % rm -r releases/$releaseVersion
@@ -116,14 +154,32 @@ fun main(args: Array<String>) {
   val env = mapOf("PATH" to newPath)
 
   step(Step.VERIFY_TESTS) {
-    println("Running extended tests with verified artifact...")
-    check(runCommand(listOf("test/test-demo-app-without-sdk.sh"), stoicDir, env))
-    check(runCommand(listOf("test/test-plugin-new.sh"), stoicDir, env))
-    check(runCommand(listOf("test/test-without-config.sh"), stoicDir, env))
-    println("Local verification succeeded.")
+    println("Verifying stoic binary location...")
+    val whichOutput = runCommandOutput(listOf("which", "stoic"), stoicDir, env).trim()
+    val expectedPath = extractedDir.resolve("bin/darwin-arm64/stoic").absolutePath
+    println("which stoic: $whichOutput")
+    if (whichOutput != expectedPath) {
+      System.err.println("❌ Wrong stoic binary! Expected $expectedPath but got: $whichOutput")
+      exitProcess(1)
+    }
+    println("✓ Using correct stoic binary from release artifacts")
+    println()
+
+    println("Verifying stoic version...")
+    val versionOutput = runCommandOutput(listOf("stoic", "--version"), stoicDir, env).trim()
+    println("stoic --version: $versionOutput")
+    if (!versionOutput.contains(releaseVersion)) {
+      System.err.println("❌ Version mismatch! Expected $releaseVersion but got: $versionOutput")
+      exitProcess(1)
+    }
+    println("✓ Version verified: $releaseVersion")
+    println()
+
+    println("Running all tests on connected device...")
+    check(runCommand(listOf("test/run-all-tests-on-connected-device.sh"), stoicDir, env))
+    println("✓ All tests passed on macOS with real hardware.")
   }
 
-  val releaseTag = "v$releaseVersion"
   step(Step.TAG_RELEASE) {
     println("Tagging release as $releaseTag")
     check(runCommand(listOf("git", "tag", "-a", releaseTag, "-m", "Release $releaseVersion"), stoicDir))
@@ -133,6 +189,13 @@ fun main(args: Array<String>) {
   step(Step.WAIT_RELEASE) {
     println("Waiting for GitHub Actions release workflow to complete...")
     waitForWorkflow("release", stoicDir, commitSha)
+    println()
+    println("GitHub release and Maven Central artifacts published:")
+    println("  GitHub Release: $githubReleaseUrl")
+    println("  Maven Central (plugin-sdk): $pluginSdkUrl")
+    println("  Maven Central (app-sdk): $appSdkUrl")
+    println()
+    println("Note: Maven Central artifacts may take up to 30 minutes to become available for download.")
   }
 
   step(Step.MERGE_MAIN) {
@@ -147,7 +210,34 @@ fun main(args: Array<String>) {
     check(runCommand(listOf("git", "add", versionFile.path), stoicDir))
     check(runCommand(listOf("git", "commit", "-m", "Start $postReleaseVersion development"), stoicDir))
     check(runCommand(listOf("git", "push", "origin", "main"), stoicDir))
+  }
+
+  step(Step.UPDATE_HOMEBREW) {
+    println("Triggering Homebrew tap update for $releaseTag...")
+    check(runCommand(listOf("gh", "workflow", "run", "update-stoic.yaml",
+      "--repo", "block/homebrew-tap",
+      "--field", "tag=$releaseTag"), stoicDir))
+
+    println("Waiting for Homebrew tap update workflow to complete...")
+    // Get the latest commit SHA from homebrew-tap main branch to wait for the workflow
+    val homebrewRepoDir = stoicDir // We're triggering from stoic repo
+    waitForWorkflowInRepo("update-stoic.yaml", "block/homebrew-tap", stoicDir, timeoutMinutes = 10)
+
+    println()
+    println("Homebrew formula updated:")
+    println("  Homebrew formula: $homebrewFormulaUrl")
+    println()
+
+    // Success message is intentionally inside the last step so we can distinguish
+    // between a fresh successful release and resuming an already-completed release
     println("Release $releaseVersion completed successfully!")
+    println()
+    println("All release artifacts:")
+    println("  GitHub Release: $githubReleaseUrl")
+    println("  Maven Central (plugin-sdk): $pluginSdkUrl")
+    println("  Maven Central (app-sdk): $appSdkUrl")
+    println("  Homebrew formula: $homebrewFormulaUrl")
+    println()
   }
 }
 
@@ -183,10 +273,11 @@ fun runCommand(cmd: List<String>, dir: File, extraEnv: Map<String, String> = emp
 }
 
 /** Capture stdout from command. */
-fun runCommandOutput(cmd: List<String>, dir: File): String {
-  val process = ProcessBuilder(cmd)
+fun runCommandOutput(cmd: List<String>, dir: File, extraEnv: Map<String, String> = emptyMap()): String {
+  val pb = ProcessBuilder(cmd)
     .directory(dir)
-    .start()
+  pb.environment().putAll(extraEnv)
+  val process = pb.start()
   val output = process.inputStream.bufferedReader().readText()
   process.waitFor()
   return output
@@ -272,6 +363,85 @@ fun waitForWorkflow(
 fun getHeadSha(repoDir: File): String =
   runCommandOutput(listOf("git", "rev-parse", "HEAD"), repoDir).trim()
 
+/**
+ * Wait for the most recent workflow run to complete in a different repository.
+ * Used when we trigger a workflow but don't know the commit SHA in that repo.
+ *
+ * @param workflow  the workflow name (e.g., "update-stoic.yaml")
+ * @param repo      the repository in owner/name format (e.g., "block/homebrew-tap")
+ * @param localDir  local directory to run commands from
+ * @param timeoutMinutes how long to wait before failing
+ */
+fun waitForWorkflowInRepo(
+  workflow: String,
+  repo: String,
+  localDir: File,
+  timeoutMinutes: Int = 10
+) {
+  val deadline = System.currentTimeMillis() + timeoutMinutes * 60_000L
+  var runId: String? = null
+  var lastStatus: String? = null
+
+  // Give the workflow a moment to start
+  Thread.sleep(5_000)
+
+  while (true) {
+    // Get the most recent workflow run
+    val line = runCommandOutput(
+      listOf(
+        "gh", "run", "list",
+        "--repo", repo,
+        "--workflow", workflow,
+        "--json", "databaseId,status,conclusion",
+        "--jq", """.[0] | "\(.databaseId) \(.status) \(.conclusion)"""",
+        "--limit", "1"
+      ),
+      localDir
+    ).trim()
+
+    if (line.isNotBlank()) {
+      val parts = line.split(Regex("\\s+"))
+      val currentRunId = parts[0]
+      val status = parts.getOrNull(1)
+      val conclusion = parts.getOrNull(2)
+      val runUrl = "https://github.com/$repo/actions/runs/$currentRunId"
+
+      // Track the run ID on first encounter
+      if (runId == null) {
+        runId = currentRunId
+        println("Tracking workflow run: $runUrl")
+      }
+
+      // Only process if this is still the same run we're tracking
+      if (currentRunId == runId) {
+        when {
+          status == "completed" && conclusion == "success" -> {
+            println("Workflow '$workflow' succeeded in $repo.")
+            return
+          }
+          status == "completed" && conclusion in listOf("failure", "cancelled", "timed_out") -> {
+            System.err.println("❌ Workflow '$workflow' failed in $repo (conclusion=$conclusion).")
+            println("See: $runUrl")
+            exitProcess(1)
+          }
+          status != lastStatus -> {
+            println("Workflow status: $status")
+            lastStatus = status
+          }
+        }
+      }
+    }
+
+    if (System.currentTimeMillis() > deadline) {
+      System.err.println("❌ Timeout waiting for workflow '$workflow' in $repo to complete.")
+      runId?.let { println("See: https://github.com/$repo/actions/runs/$it") }
+      exitProcess(1)
+    }
+
+    Thread.sleep(10_000)
+  }
+}
+
 // Order of steps for resume logic
 private enum class Step {
   SHELLCHECK,
@@ -282,5 +452,6 @@ private enum class Step {
   TAG_RELEASE,
   WAIT_RELEASE,
   MERGE_MAIN,
-  BUMP_SNAPSHOT
+  BUMP_SNAPSHOT,
+  UPDATE_HOMEBREW
 }
