@@ -9,6 +9,7 @@ script_dir="$(dirname "$(readlink -f "$0")")"
 (cd "$script_dir/.." && ./gradlew clean)
 "$script_dir/../build.sh"
 
+export PATH="$script_dir/../build/distributions/bin/darwin-arm64:$PATH"
 if [ "$(realpath "$(which stoic)")" != "$(realpath "$script_dir/../build/distributions/bin/darwin-arm64/stoic")" ]; then
   echo stoic resolves to "$(which stoic)" - not the one we just built
   exit 1
