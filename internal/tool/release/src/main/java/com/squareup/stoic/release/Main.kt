@@ -1,4 +1,4 @@
-package com.squareup.stoic.preparerelease
+package com.squareup.stoic.release
 
 import com.squareup.stoic.bridge.versionCodeFromVersionName
 import java.io.File

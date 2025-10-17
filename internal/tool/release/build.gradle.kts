@@ -8,7 +8,7 @@ dependencies {
 }
 
 application {
-  mainClass.set("com.squareup.stoic.preparerelease.MainKt")
+  mainClass.set("com.squareup.stoic.release.MainKt")
 }
 
 tasks.named<JavaExec>("run") {
