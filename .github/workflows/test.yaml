@@ -56,6 +56,7 @@ jobs:
         run: |
           mkdir -p build/distributions
           tar -C build/distributions -xzf stoic-release.tar.gz
+          chmod +x build/distributions/bin/jvm/stoic
 
       # Build if manually triggered (workflow_dispatch)
       - name: Build (manual trigger)
@@ -77,7 +78,23 @@ jobs:
             adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done'
             echo "Emulator is ready"
 
-            export PATH="$PWD/build/distributions/bin/jvm:$PATH"
+            # Debug: show directory structure
+            echo "=== Directory structure ==="
+            find . -name stoic -o -name "*.tar.gz" | head -20
+            echo "==========================="
+
+            # Verify stoic binary exists and add to PATH
+            if [ -f "$PWD/build/distributions/bin/jvm/stoic" ]; then
+              ls -l "$PWD/build/distributions/bin/jvm/stoic"
+              export PATH="$PWD/build/distributions/bin/jvm:$PATH"
+              echo "Added stoic to PATH: $(which stoic)"
+              stoic --version || true
+            else
+              echo "ERROR: stoic binary not found at $PWD/build/distributions/bin/jvm/stoic"
+              echo "Current directory: $PWD"
+              find build -type f -name stoic 2>/dev/null || echo "No stoic files found in build/"
+              exit 1
+            fi
 
             # Run all tests
             test/run-all-tests-on-connected-device.sh
