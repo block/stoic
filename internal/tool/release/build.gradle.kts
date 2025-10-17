@@ -13,4 +13,5 @@ application {
 
 tasks.named<JavaExec>("run") {
   workingDir = File(System.getProperty("user.dir"))
+  standardInput = System.`in`
 }
