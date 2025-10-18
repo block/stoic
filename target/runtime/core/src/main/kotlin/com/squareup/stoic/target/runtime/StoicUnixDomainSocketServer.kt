@@ -1,5 +1,6 @@
 package com.squareup.stoic.target.runtime
 
+import android.content.Context
 import android.net.LocalServerSocket
 import android.util.Log
 import com.squareup.stoic.common.JvmtiAttachOptions
@@ -18,13 +19,13 @@ class StoicUnixDomainSocketServer {
     val lock = Any()
     var isRunning: Boolean = false
 
-    fun ensureRunning(stoicDir: String, async: Boolean) {
+    fun ensureRunning(stoicDir: String, async: Boolean, context: Context? = null) {
       if (async) {
         synchronized(lock) {
           if (isRunning) { return } else { isRunning = true }
 
           thread(isDaemon = true, name = "stoic-uds-server") {
-            startServer(stoicDir)
+            startServer(stoicDir, context)
           }
         }
       } else {
@@ -32,13 +33,13 @@ class StoicUnixDomainSocketServer {
           if (isRunning) { return } else { isRunning = true }
         }
 
-        startServer(stoicDir)
+        startServer(stoicDir, context)
       }
     }
   }
 }
 
-private fun startServer(stoicDir: String) {
+private fun startServer(stoicDir: String, context: Context?) {
   try {
     Log.d("stoic", "stoicDir: $stoicDir")
     val options = Json.decodeFromString(
@@ -80,10 +81,21 @@ private fun startServer(stoicDir: String) {
       Log.i("stoic", "received connection: $socket")
       thread (name = "stoic-plugin") {
         try {
+          // Discover embedded plugins from AndroidManifest
+          // Get context either from the parameter (BroadcastReceiver path) or via reflection (JVMTI path)
+          val appContext = context ?: retrieveApplicationContextViaReflection()
+          val embeddedPlugins = if (appContext != null) {
+            Log.d("stoic", "Discovering embedded plugins...")
+            StoicPluginDiscovery.discoverPlugins(appContext)
+          } else {
+            Log.w("stoic", "No context available - skipping embedded plugin discovery")
+            emptyMap()
+          }
+
           StoicPluginServer(
             stoicDir,
             options,
-            mapOf(),
+            embeddedPlugins,
             socket.inputStream,
             socket.outputStream
           ).pluginMain()

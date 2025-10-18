@@ -23,6 +23,7 @@ import com.squareup.stoic.common.VerifyProtocolVersion
 import com.squareup.stoic.common.logInfo
 import com.squareup.stoic.common.logVerbose
 import com.squareup.stoic.common.runCommand
+import com.squareup.stoic.plugin.StoicPlugin
 import com.squareup.stoic.threadlocals.stoic
 import dalvik.system.DexClassLoader
 import java.io.DataInputStream
@@ -40,46 +41,46 @@ import kotlin.concurrent.thread
 class StoicPluginServer(
   private val stoicDir: String,
   private val options: JvmtiAttachOptions,
-  extraPlugins: Map<String, StoicNamedPlugin>,
+  extraPlugins: Map<String, StoicPlugin>,
   private val socketInputStream: InputStream,
   private val socketOutputStream: OutputStream,
 ) {
   private val writer = MessageWriter(DataOutputStream(socketOutputStream))
   private val reader = MessageReader(DataInputStream(socketInputStream))
-  private val builtinPlugins: Map<String, StoicNamedPlugin>
+  private val embeddedPlugins: Map<String, StoicPlugin>
 
   init {
     logVerbose { "constructed writer from ${writer.dataOutputStream} (underlying ${socketOutputStream})" }
     logVerbose { "constructed reader from ${reader.dataInputStream} (underlying ${socketInputStream})" }
     val defaultPlugins = mapOf(
-      "stoic-status" to object : StoicNamedPlugin {
+      "stoic-status" to object : StoicPlugin {
         override fun run(args: List<String>): Int {
           stoic.stdout.println(
             """
               protocol-version: ${options.stoicProtocolVersion}
               attached-via: ${options.attachedVia}
-              builtin-plugins: ${builtinPlugins.keys}
+              embedded-plugins: ${embeddedPlugins.keys}
             """.trimIndent()
           )
 
           return 0
         }
       },
-      "stoic-list" to object : StoicNamedPlugin {
+      "stoic-list" to object : StoicPlugin {
         override fun run(args: List<String>): Int {
-          builtinPlugins.keys.forEach { stoic.stdout.println(it) }
+          embeddedPlugins.keys.forEach { stoic.stdout.println(it) }
 
           return 0
         }
       },
-      "stoic-noop" to object : StoicNamedPlugin {
+      "stoic-noop" to object : StoicPlugin {
         override fun run(args: List<String>): Int {
           // This is used to ensure the server is running
           return 0
         }
       },
     )
-    builtinPlugins = defaultPlugins + extraPlugins
+    embeddedPlugins = defaultPlugins + extraPlugins
   }
 
 
@@ -187,7 +188,7 @@ class StoicPluginServer(
         // Set the context classloader so plugin code can load classes from its own JAR
         Thread.currentThread().contextClassLoader = classLoader
 
-        object: StoicNamedPlugin {
+        object: StoicPlugin {
           override fun run(args: List<String>): Int {
             return try {
               pluginMain.invoke(null, args.toTypedArray())
@@ -209,9 +210,9 @@ class StoicPluginServer(
           }
         }
       } else if (startPlugin.pluginName != null) {
-        val p = builtinPlugins[startPlugin.pluginName]
+        val p = embeddedPlugins[startPlugin.pluginName]
         if (p == null) {
-          val msg = "No builtin plugin named: ${startPlugin.pluginName}"
+          val msg = "No embedded plugin named: ${startPlugin.pluginName}"
           Log.i("stoic", msg)
           writer.writeResponse(
             startPluginRequestId,

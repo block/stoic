@@ -217,10 +217,9 @@ class Entrypoint : CliktCommand(
     "--demo",
     help = "limit plugin resolution to demo plugins"
   ).trackableFlag()
-  val isBuiltin by option(
-    "--builtin",
-    "--built-in",
-    help = "limit plugin resolution to builtin plugins"
+  val isEmbedded by option(
+    "--embedded",
+    help = "limit plugin resolution to embedded plugins"
   ).trackableFlag()
   val isUser by option(
     "--user",
@@ -242,23 +241,23 @@ class Entrypoint : CliktCommand(
   val subcommandArgs by argument(name = "plugin-args").multiple()
 
   var demoAllowed = false
-  var builtinAllowed = false
+  var embeddedAllowed = false
   var userAllowed = false
 
   fun resolveAllowed() {
-    val count = listOf(isDemo, isBuiltin, isUser).count { it }
+    val count = listOf(isDemo, isEmbedded, isUser).count { it }
     if (count == 0) {
       demoAllowed = true
-      builtinAllowed = true
+      embeddedAllowed = true
       userAllowed = true
     } else if (count > 1) {
-      throw UsageError("--demo/--builtin/--user are mutually exclusive")
+      throw UsageError("--demo/--embedded/--user are mutually exclusive")
     } else if (isTool) {
-      throw UsageError("--tool is invalid with --demo/--builtin/--user")
+      throw UsageError("--tool is invalid with --demo/--embedded/--user")
     } else if (isDemo) {
       demoAllowed = true
-    } else if (isBuiltin) {
-      builtinAllowed = true
+    } else if (isEmbedded) {
+      embeddedAllowed = true
     } else if (isUser) {
       userAllowed = true
     }
@@ -528,7 +527,7 @@ fun runList(entrypoint: Entrypoint): Int {
 }
 
 fun gatherPluginList(entrypoint: Entrypoint): List<String> {
-  // TODO: Invoke builtin stoic-list to get list of builtin plugins (and allow --package)
+  // TODO: Invoke embedded stoic-list to get list of embedded plugins (and allow --package)
   val pluginList = mutableListOf<String>()
 
   val apkFilter = object : FileFilter {
@@ -631,23 +630,24 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
     return runTool(entrypoint)
   }
 
-  // If resolvePluginModule returns null then we'll try assuming its a builtin (if we resolved the
-  // device) if that fails, then we'll check for a tool
+  // If resolvePluginModule returns null then we'll try assuming its a embedded
+  // (if we resolved the device) if that fails, then we'll check for a tool
   val apkInfo = resolveUserOrDemo(entrypoint)
 
-  val isPlugin = if (apkInfo != null || entrypoint.isBuiltin) {
+  val usingDefaultPackage = entrypoint.rawPkg == null
+  val isPlugin = if (apkInfo != null || entrypoint.isEmbedded) {
     true
-  } else if (entrypoint.pkg !in listOf(Entrypoint.DEFAULT_DEBUGGABLE_PACKAGE, Entrypoint.DEFAULT_NON_DEBUGGABLE_PACKAGE)) {
-    // Tools don't take pkg as argument, so it must be a plugin
-    true
-  } else if (entrypoint.commandName in listOf("stoic-list", "stoic-status", "stoic-noop")) {
-    // We know the list of plugins that the default package supports - if the command is on that
-    // list, then it's a plugin
-    // TODO: validate this list is sync'd with the actual supported plugins
+  } else if (entrypoint.isTool) {
+    // Explicitly requested a tool
+    false
+  } else if (!usingDefaultPackage) {
+    // Tools are only valid with the default package, so this must be a plugin
     true
   } else {
-    // Otherwise it's not a plugin
-    false
+    // These are the only embedded plugins for the default package - if it's
+    // not one of these then it must be a tool.
+    // TODO: validate this list is sync'd with the actual supported plugins
+    entrypoint.subcommand in listOf("stoic-list", "stoic-status", "stoic-noop")
   }
 
   return if (isPlugin) {
@@ -822,14 +822,14 @@ fun shellEscapeCmd(cmdArgs: List<String>): String {
 fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
   val pluginName = entrypoint.subcommand!!
   logDebug { "Attempting to resolve '$pluginName'" }
-  if (listOf(entrypoint.isDemo, entrypoint.isBuiltin, entrypoint.isUser).count { it } > 1) {
-    throw PithyException("At most one of --demo/--builtin/--user may be specified")
+  if (listOf(entrypoint.isDemo, entrypoint.isEmbedded, entrypoint.isUser).count { it } > 1) {
+    throw PithyException("At most one of --demo/--embedded/--user may be specified")
   }
 
   if (pluginName.endsWith(".jar") || pluginName.endsWith(".apk")) {
     if (!entrypoint.userAllowed) {
       val fileType = if (pluginName.endsWith(".jar")) "jar" else "apk"
-      throw PithyException("$fileType plugin are considered user - --demo/--builtin options are incompatible")
+      throw PithyException("$fileType plugin are considered user - --demo/--embedded options are incompatible")
     }
 
     val file = File(pluginName)
@@ -867,6 +867,8 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
 
         return ApkCache.resolve(File(outputPath))
       }
+    } else if (entrypoint.isUser) {
+      throw PithyException("User plugin `$pluginName` not found, to see list: stoic --list --user")
     }
   }
 

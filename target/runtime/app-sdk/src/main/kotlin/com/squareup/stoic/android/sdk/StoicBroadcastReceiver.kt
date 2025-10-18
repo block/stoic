@@ -21,7 +21,7 @@ class StoicBroadcastReceiver: BroadcastReceiver() {
     File(optionsJsonPath).writeText(
       "{\"stoicProtocolVersion\":$STOIC_PROTOCOL_VERSION, \"attachedVia\":\"${AttachVia.SDK.str}\"}"
     )
-    StoicUnixDomainSocketServer.ensureRunning(stoicDir = stoicDir, async = true)
+    StoicUnixDomainSocketServer.ensureRunning(stoicDir = stoicDir, async = true, context = context.applicationContext)
     Log.i("stoic", "started server")
   }
 }

@@ -260,20 +260,47 @@ debug_option="$4"
 # One of jvmti/jvmti_root/sdk
 attach_option="$5"
 
-if ! pm list packages "$pkg" | grep -x "package:$pkg"; then
-  # If a demo app is specified then we'll automatically install it
-  case "$pkg" in
-    com.squareup.stoic.demoapp.withoutsdk)
-      pm install "$stoic_device_sync_dir/apk/stoic-demo-app-without-sdk-debug.apk"
-      ;;
-    com.squareup.stoic.demoapp.withsdk)
-      pm install "$stoic_device_sync_dir/apk/stoic-demo-app-with-sdk-release.apk"
-      ;;
-    *)
-      attach_error_summary="$pkg not found"
-      exit 1
-      ;;
-  esac
+# Check if we need to install/update a demo app
+demo_apk=""
+case "$pkg" in
+  com.squareup.stoic.demoapp.withoutsdk)
+    demo_apk="$stoic_device_sync_dir/apk/stoic-demo-app-without-sdk-debug.apk"
+    ;;
+  com.squareup.stoic.demoapp.withsdk)
+    demo_apk="$stoic_device_sync_dir/apk/stoic-demo-app-with-sdk-release.apk"
+    ;;
+esac
+
+if [ -n "$demo_apk" ]; then
+  # This is a demo app - check if it needs to be installed or updated
+  apk_timestamp_file="$stoic_device_sync_dir/.installed_apk_timestamps/$pkg"
+  apk_mtime=$(stat -c %Y "$demo_apk" 2>/dev/null || echo "0")
+
+  needs_install=false
+  if ! pm list packages "$pkg" | grep -x "package:$pkg"; then
+    # Package not installed
+    needs_install=true
+  elif [ ! -f "$apk_timestamp_file" ]; then
+    # No timestamp recorded - reinstall to be safe
+    needs_install=true
+  else
+    # Check if APK is newer than what we installed
+    installed_mtime=$(cat "$apk_timestamp_file")
+    if [ "$apk_mtime" -gt "$installed_mtime" ]; then
+      needs_install=true
+    fi
+  fi
+
+  if [ "$needs_install" = "true" ]; then
+    pm install -r "$demo_apk"
+    # Record the timestamp of the APK we just installed
+    mkdir -p "$(dirname "$apk_timestamp_file")"
+    echo "$apk_mtime" > "$apk_timestamp_file"
+  fi
+elif ! pm list packages "$pkg" | grep -x "package:$pkg"; then
+  # Not a demo app and package not found
+  attach_error_summary="$pkg not found"
+  exit 1
 fi
 
 case "$attach_option" in
