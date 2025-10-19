@@ -81,14 +81,14 @@ private fun startServer(stoicDir: String, context: Context?) {
       Log.i("stoic", "received connection: $socket")
       thread (name = "stoic-plugin") {
         try {
-          // Discover embedded plugins from AndroidManifest
+          // Load config from AndroidManifest
           // Get context either from the parameter (BroadcastReceiver path) or via reflection (JVMTI path)
           val appContext = context ?: retrieveApplicationContextViaReflection()
           val embeddedPlugins = if (appContext != null) {
-            Log.d("stoic", "Discovering embedded plugins...")
-            StoicPluginDiscovery.discoverPlugins(appContext)
+            Log.d("stoic", "Loading Stoic config...")
+            StoicConfigLoader.loadConfig(appContext).getPlugins(appContext)
           } else {
-            Log.w("stoic", "No context available - skipping embedded plugin discovery")
+            Log.w("stoic", "No context available - skipping config loading")
             emptyMap()
           }
 

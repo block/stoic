@@ -30,9 +30,9 @@ import android.content.Context
  *
  * When Stoic attaches (via JVMTI or BroadcastReceiver), it will:
  * 1. Read your app's AndroidManifest.xml
- * 2. Find all `com.squareup.stoic.config` meta-data entries
- * 3. Instantiate each config class
- * 4. Call [getPlugins] to discover available plugins
+ * 2. Find the `com.squareup.stoic.config` meta-data entry
+ * 3. Instantiate the config class
+ * 4. Call [getPlugins] to load available plugins
  *
  * The plugins can then be invoked with: `stoic PACKAGE PLUGIN_NAME ARGS`.
  */
