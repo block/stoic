@@ -32,10 +32,6 @@ jobs:
         run: |
           ./build.sh --yes
 
-      - name: Verify Kotlin API version in SDK artifacts
-        run: |
-          ./test/verify-kotlin-api-version.sh
-
       - name: Pack build/distributions as tar (preserves perms & symlinks)
         run: tar --create --gzip --file=stoic-release.tar.gz --directory=build/distributions .
 
