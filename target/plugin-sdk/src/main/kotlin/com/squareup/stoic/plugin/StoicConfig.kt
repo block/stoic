@@ -3,23 +3,22 @@ package com.squareup.stoic.plugin
 import android.content.Context
 
 /**
- * Registry of embedded Stoic plugins.
+ * Configuration for Stoic integration.
  *
- * To make plugins available when Stoic attaches to your app, implement this interface
- * and declare it in your AndroidManifest.xml:
+ * To configure Stoic for your app, implement this interface and declare it in your AndroidManifest.xml:
  *
  * ```xml
  * <application>
  *     <meta-data
- *         android:name="com.squareup.stoic.plugin.registry"
- *         android:value="com.example.MyPluginRegistry" />
+ *         android:name="com.squareup.stoic.config"
+ *         android:value="com.example.MyStoicConfig" />
  * </application>
  * ```
  *
- * Then implement the registry:
+ * Then implement the config:
  *
  * ```kotlin
- * class MyPluginRegistry : StoicPluginRegistry {
+ * class MyStoicConfig : StoicConfig {
  *     override fun getPlugins(context: Context): Map<String, StoicPlugin> {
  *         return mapOf(
  *             "my-plugin" to MyPlugin(context),
@@ -31,13 +30,13 @@ import android.content.Context
  *
  * When Stoic attaches (via JVMTI or BroadcastReceiver), it will:
  * 1. Read your app's AndroidManifest.xml
- * 2. Find all `com.squareup.stoic.plugin.registry` meta-data entries
- * 3. Instantiate each registry class
+ * 2. Find all `com.squareup.stoic.config` meta-data entries
+ * 3. Instantiate each config class
  * 4. Call [getPlugins] to discover available plugins
  *
  * The plugins can then be invoked with: `stoic PACKAGE PLUGIN_NAME ARGS`.
  */
-interface StoicPluginRegistry {
+interface StoicConfig {
     /**
      * Returns a map of plugin names to plugin instances.
      *

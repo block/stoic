@@ -16,10 +16,10 @@
       android:supportsRtl="true"
       android:theme="@style/Theme.Stoic">
 
-    <!-- Register embedded Stoic plugins -->
+    <!-- Stoic configuration -->
     <meta-data
-        android:name="com.squareup.stoic.plugin.registry"
-        android:value="com.squareup.stoic.demoapp.withsdk.plugins.DemoPluginRegistry" />
+        android:name="com.squareup.stoic.config"
+        android:value="com.squareup.stoic.demoapp.withsdk.plugins.DemoStoicConfig" />
 
     <activity
         android:name="com.squareup.stoic.demoapp.withsdk.ExampleActivity"
