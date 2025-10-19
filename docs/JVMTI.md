@@ -1,7 +1,8 @@
 # JVMTI
 
-The JVMTI package implements something approximating JDI, but instead of being
-implemented on JDWP it is implemented directly on top of JVMTI.
+The com.squareup.stoic.jvmti package implements something approximating JDI,
+but instead of being implemented on JDWP it is implemented directly on top of
+JVMTI.
 
 It is hoped by using the structure of JDI I avoid running into any design landmines. Since we are
 running in-process, many aspects of JDI can be simplified, so I didn't implement JDI interfaces
