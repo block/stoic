@@ -51,6 +51,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify test workflow passed for this commit
+        run: |
+          echo "Checking test status for commit $GITHUB_SHA"
+          TEST_CONCLUSION=$(gh run list --workflow test --json headSha,conclusion \
+            | jq -r '.[] | select(.headSha=="'$GITHUB_SHA'") | .conclusion' | head -n1)
+          if [ -z "$TEST_CONCLUSION" ]; then
+            echo "No 'test' run found for commit $GITHUB_SHA"
+            exit 1
+          fi
+          if [ "$TEST_CONCLUSION" != "success" ]; then
+            echo "Test workflow did not succeed for commit $GITHUB_SHA (conclusion: $TEST_CONCLUSION)"
+            exit 1
+          fi
+          echo "✅ Test workflow passed for commit $GITHUB_SHA"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download build artifact
         run: |
           gh run download ${{ steps.find-build.outputs.BUILD_RUN_ID }} -n stoic-release-tar-gz -D artifacts

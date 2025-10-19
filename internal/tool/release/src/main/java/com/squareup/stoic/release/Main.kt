@@ -201,6 +201,10 @@ fun main(args: Array<String>) {
     println("✓ All tests passed on macOS with real hardware.")
   }
 
+  // Tagging the release will kickoff the release workflow. This will first
+  // check that the test workflow succeeded and then perform the actual release
+  // to Maven and Github releases. Due to permissions issues, we need to
+  // release to our homebrew-tap separately within this script.
   step(Step.TAG_RELEASE) {
     println("Tagging release as $releaseTag")
     check(runCommand(listOf("git", "tag", "-a", releaseTag, "-m", "Release $releaseVersion"), stoicDir))
