@@ -19,21 +19,13 @@ class StoicUnixDomainSocketServer {
     val lock = Any()
     var isRunning: Boolean = false
 
-    fun ensureRunning(stoicDir: String, async: Boolean, context: Context? = null) {
-      if (async) {
-        synchronized(lock) {
-          if (isRunning) { return } else { isRunning = true }
+    fun ensureRunning(stoicDir: String, context: Context? = null) {
+      synchronized(lock) {
+        if (isRunning) { return } else { isRunning = true }
 
-          thread(isDaemon = true, name = "stoic-uds-server") {
-            startServer(stoicDir, context)
-          }
+        thread(isDaemon = true, name = "stoic-uds-server") {
+          startServer(stoicDir, context)
         }
-      } else {
-        synchronized(lock) {
-          if (isRunning) { return } else { isRunning = true }
-        }
-
-        startServer(stoicDir, context)
       }
     }
   }
