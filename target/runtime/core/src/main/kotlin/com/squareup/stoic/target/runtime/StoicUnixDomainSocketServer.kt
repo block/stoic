@@ -82,8 +82,9 @@ private fun startServer(stoicDir: String, context: Context?) {
       thread (name = "stoic-plugin") {
         try {
           // Load config from AndroidManifest
-          // Get context either from the parameter (BroadcastReceiver path) or via reflection (JVMTI path)
-          val appContext = context ?: retrieveApplicationContextViaReflection()
+          // Get context either from the parameter (BroadcastReceiver path) or
+          // via reflection (JVMTI path)
+          val appContext = context?.applicationContext ?: retrieveApplicationContextViaReflection()
           val embeddedPlugins = if (appContext != null) {
             Log.d("stoic", "Loading Stoic config...")
             StoicConfigLoader.loadConfig(appContext).getPlugins(appContext)
