@@ -14,10 +14,26 @@ import com.squareup.stoic.helpers.*
 import com.squareup.stoic.threadlocals.stoic
 
 fun main(args: Array<String>) {
-  testDuplicateArguments()
-  testTrace()
-  testMethodEntry()
-  testMethodExit()
+  val command = args.firstOrNull() ?: "testsuite"
+
+  when (command) {
+    "testsuite" -> {
+      testDuplicateArguments()
+      testTrace()
+      testMethodEntry()
+      testMethodExit()
+    }
+    "getenv" -> {
+      // Print the value of each requested environment variable
+      for (varName in args.drop(1)) {
+        println(stoic.getenv(varName) ?: "")
+      }
+    }
+    else -> {
+      eprintln("Unknown test command: $command")
+      eprintln("Available commands: testsuite, getenv")
+    }
+  }
 }
 
 // Verify that we don't include duplicate arguments. The local variable table may contain duplicate

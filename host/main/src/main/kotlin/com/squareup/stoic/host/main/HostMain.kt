@@ -211,7 +211,13 @@ class Entrypoint : CliktCommand(
   val env by option(
     "--env",
     help = "Environment key=value pairs - plugins access these via stoic.getenv(...)"
-  ).trackableOption().pair().multiple()
+  ).trackableOption().convert { value ->
+    val parts = value.split('=', limit = 2)
+    if (parts.size != 2) {
+      fail("--env must be in format KEY=VALUE")
+    }
+    parts[0] to parts[1]
+  }.multiple()
 
   val isDemo by option(
     "--demo",

@@ -257,7 +257,6 @@ val buildDistribution by tasks.registering {
         ":demo-plugin:appexitinfo:apk",
         ":demo-plugin:breakpoint:apk",
         ":demo-plugin:crasher:apk",
-        ":demo-plugin:testsuite:apk",
         ":demo-app:without-sdk:assembleDebug",
         ":demo-app:with-sdk:assembleRelease",
         ":native:buildNative"
@@ -353,11 +352,6 @@ val buildDistribution by tasks.registering {
             from("demo-plugin/helloworld/build/libs/helloworld-$versionName.apk")
             into(demoPluginsDir)
             rename { "helloworld.apk" }
-        }
-        copy {
-            from("demo-plugin/testsuite/build/libs/testsuite-$versionName.apk")
-            into(demoPluginsDir)
-            rename { "testsuite.apk" }
         }
 
         // Set permissions on sync directory

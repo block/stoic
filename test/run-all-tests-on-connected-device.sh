@@ -18,6 +18,7 @@ FAILED_TESTS=()
 TESTS=(
     "verify-kotlin-api-version.sh"  # doesn't use device
     "test-demo-app-without-sdk.sh"
+    "test-env-flag.sh"
     "test-plugin-new.sh"
     "test-without-config.sh"
     "testsuite.sh"
