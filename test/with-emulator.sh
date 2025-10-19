@@ -169,6 +169,12 @@ fi
 
 echo ""
 echo "Starting emulator..."
+
+# Redirect emulator output to log file
+EMULATOR_LOG_DIR="/tmp/.stoic"
+EMULATOR_LOG_FILE="$EMULATOR_LOG_DIR/emulator-startup.log"
+mkdir -p "$EMULATOR_LOG_DIR"
+
 "$EMULATOR" \
     -avd "$AVD_NAME" \
     -no-snapshot-save \
@@ -176,10 +182,11 @@ echo "Starting emulator..."
     -no-boot-anim \
     -no-window \
     -gpu swiftshader_indirect \
-    &
+    > "$EMULATOR_LOG_FILE" 2>&1 &
 
 EMULATOR_PID=$!
 echo "Emulator started (PID: $EMULATOR_PID)"
+echo "Emulator output: $EMULATOR_LOG_FILE"
 
 echo ""
 echo "Waiting for emulator to appear in adb devices..."
@@ -197,6 +204,11 @@ echo ""
 
 if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
     echo "Error: Emulator did not appear in adb devices within 3 minutes" >&2
+    echo "" >&2
+    echo "Emulator startup log ($EMULATOR_LOG_FILE):" >&2
+    echo "===========================================" >&2
+    cat "$EMULATOR_LOG_FILE" >&2
+    echo "===========================================" >&2
     exit 1
 fi
 
