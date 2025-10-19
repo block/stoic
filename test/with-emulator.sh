@@ -168,6 +168,10 @@ else
 fi
 
 echo ""
+
+# Record existing emulators before starting ours
+PRE_EXISTING_DEVICES=$("$ADB" devices | awk '{print $1}' | sort || true)
+
 echo "Starting emulator..."
 
 # Redirect emulator output to log file
@@ -192,18 +196,31 @@ echo ""
 echo "Waiting for emulator to appear in adb devices..."
 WAIT_COUNT=0
 MAX_WAIT=90  # Increased from 60 to 90 (3 minutes)
+NEW_EMULATOR=""
 while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
-    if "$ADB" devices | grep -q "emulator-.*device$"; then
-        break
+    # Get current emulators
+    CURRENT_EMULATORS=$("$ADB" devices | grep "emulator-" | awk '{print $1}' | sort || true)
+
+    # Find the new emulator (present in CURRENT but not in EXISTING)
+    # comm -13: suppress lines unique to first file and common lines, showing
+    #   only lines unique to second file
+    NEW_EMULATOR=$(comm -13 <(echo "$PRE_EXISTING_DEVICES") <(echo "$CURRENT_EMULATORS") | head -1)
+
+    if [ -n "$NEW_EMULATOR" ]; then
+        # Check if it's fully booted (shows as "device" not just "offline")
+        if "$ADB" -s "$NEW_EMULATOR" get-state 2>/dev/null | grep -q "device"; then
+            break
+        fi
     fi
+
     sleep 2
     WAIT_COUNT=$((WAIT_COUNT + 1))
     echo -n "."
 done
 echo ""
 
-if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
-    echo "Error: Emulator did not appear in adb devices within 3 minutes" >&2
+if [ -z "$NEW_EMULATOR" ]; then
+    echo "Error: New emulator did not appear in adb devices within 3 minutes" >&2
     echo "" >&2
     echo "Emulator startup log ($EMULATOR_LOG_FILE):" >&2
     echo "===========================================" >&2
@@ -212,8 +229,8 @@ if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
     exit 1
 fi
 
-# Get emulator serial
-export ANDROID_SERIAL=$("$ADB" devices | grep "emulator-" | head -1 | awk '{print $1}')
+# Use the newly started emulator
+export ANDROID_SERIAL="$NEW_EMULATOR"
 echo "Emulator device: $ANDROID_SERIAL"
 
 echo ""
