@@ -6,7 +6,7 @@ import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
   if (args.isEmpty()) {
-    System.err.println("Usage: prepareRelease <path-to-stoic-root>")
+    System.err.println("Usage: release <path-to-stoic-root>")
     exitProcess(1)
   }
 
@@ -71,7 +71,7 @@ fun main(args: Array<String>) {
   }
 
   // state tracking
-  val stateFile = artifactsDir.resolve(".prepare_state")
+  val stateFile = artifactsDir.resolve(".release_state")
   fun markStep(step: Step) {
     println("Completed: $step")
     stateFile.writeText(step.name)
