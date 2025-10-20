@@ -83,6 +83,8 @@ private fun startServer(stoicDir: String, context: Context?) {
             emptyMap()
           }
 
+          Log.d("stoic", "embedded plugins: ${embeddedPlugins.keys.joinToString(", ")}")
+
           StoicPluginServer(
             stoicDir,
             options,
