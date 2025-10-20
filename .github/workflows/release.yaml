@@ -86,7 +86,7 @@ jobs:
 
       - name: Print publishing info
         run: |
-          ./gradlew :target:plugin-sdk:printPublishingInfo :target:app-sdk:printPublishingInfo
+          ./gradlew :protocol:printPublishingInfo :target:plugin-sdk:printPublishingInfo :target:app-sdk:printPublishingInfo
 
       - name: Publish plugin-sdk JAR to Maven Central
         run: |

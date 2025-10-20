@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.vanniktech.maven.publish.base)
 }
 
 repositories {
@@ -72,4 +73,9 @@ tasks.withType<KotlinCompile> {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+// Make sourcesJar depend on code generation for publishing
+tasks.named("sourcesJar") {
+    dependsOn(generateCode)
 }
