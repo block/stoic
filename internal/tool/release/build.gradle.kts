@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-  implementation(project(":generated-bridge"))
+  implementation(project(":common"))
 }
 
 application {

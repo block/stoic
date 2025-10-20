@@ -50,6 +50,5 @@ dependencies {
   // These dependencies will be transitive - users of app-sdk will automatically get them
   api(project(":common"))
   api(project(":target:plugin-sdk"))
-  api(project(":generated-bridge"))
   api(libs.kotlinx.serialization.json)
 }

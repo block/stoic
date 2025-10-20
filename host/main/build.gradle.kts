@@ -17,7 +17,6 @@ dependencies {
     implementation(libs.clikt)
     implementation(kotlin("stdlib"))
     implementation(project(":common"))
-    implementation(project(":generated-bridge"))
     implementation(project(":internal:tool:jar-to-apk-preserve-manifest"))
 }
 

@@ -18,7 +18,6 @@ dependencyResolutionManagement {
 include("target:jvmti-attach")
 include("target:app-sdk")
 include("target:plugin-sdk")
-include("generated-bridge")
 include("common")
 include("demo-app:without-sdk")
 include("demo-app:with-sdk")
