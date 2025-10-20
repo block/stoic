@@ -39,32 +39,14 @@ jobs:
       - name: Find latest successful build artifact for this commit
         id: find-build
         run: |
-          echo "Fetching build for commit $GITHUB_SHA"
-          BUILD_RUN_ID=$(gh run list --workflow build --json headSha,databaseId,status,conclusion \
-            | jq -r '.[] | select(.headSha=="'$GITHUB_SHA'" and .conclusion=="success") | .databaseId' | head -n1)
-          if [ -z "$BUILD_RUN_ID" ]; then
-            echo "No successful 'build' run found for commit $GITHUB_SHA"
-            exit 1
-          fi
-          echo "Using build $BUILD_RUN_ID for commit $GITHUB_SHA"
+          BUILD_RUN_ID=$(.github/scripts/find-build-for-commit.sh $GITHUB_SHA)
           echo "BUILD_RUN_ID=$BUILD_RUN_ID" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify test workflow passed for this commit
         run: |
-          echo "Checking test status for commit $GITHUB_SHA"
-          TEST_CONCLUSION=$(gh run list --workflow test --json headSha,conclusion \
-            | jq -r '.[] | select(.headSha=="'$GITHUB_SHA'") | .conclusion' | head -n1)
-          if [ -z "$TEST_CONCLUSION" ]; then
-            echo "No 'test' run found for commit $GITHUB_SHA"
-            exit 1
-          fi
-          if [ "$TEST_CONCLUSION" != "success" ]; then
-            echo "Test workflow did not succeed for commit $GITHUB_SHA (conclusion: $TEST_CONCLUSION)"
-            exit 1
-          fi
-          echo "✅ Test workflow passed for commit $GITHUB_SHA"
+          .github/scripts/wait-for-test-workflow.sh $GITHUB_SHA
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -82,11 +64,22 @@ jobs:
 
       - name: Extract SDK artifacts from tarball
         run: |
-          tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-plugin-sdk.jar sdk/stoic-app-sdk.aar
+          tar -xzf artifacts/stoic-release.tar.gz sdk/stoic-protocol.jar sdk/stoic-plugin-sdk.jar sdk/stoic-app-sdk.aar
 
       - name: Print publishing info
         run: |
           ./gradlew :protocol:printPublishingInfo :target:plugin-sdk:printPublishingInfo :target:app-sdk:printPublishingInfo
+
+      - name: Publish protocol JAR to Maven Central
+        run: |
+          ./gradlew :protocol:publish \
+            -PartifactFile=$(pwd)/sdk/stoic-protocol.jar \
+            --info
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SECRET_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SECRET_PASSPHRASE }}
 
       - name: Publish plugin-sdk JAR to Maven Central
         run: |

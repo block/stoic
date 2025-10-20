@@ -292,16 +292,18 @@ val buildDistribution by tasks.registering {
             into("$releaseDir/bin/darwin-arm64")
         }
 
+        // Copy protocol JAR
+        copy {
+            from("protocol/build/libs/protocol-$versionName.jar")
+            into("$releaseDir/sdk")
+            rename { "stoic-protocol.jar" }
+        }
+
         // Copy plugin SDK
         copy {
             from("target/plugin-sdk/build/libs/plugin-sdk-$versionName.jar")
             into("$releaseDir/sdk")
             rename { "stoic-plugin-sdk.jar" }
-        }
-        copy {
-            from("target/plugin-sdk/build/libs/plugin-sdk-$versionName-sources.jar")
-            into("$releaseDir/sdk")
-            rename { "stoic-plugin-sdk-sources.jar" }
         }
 
         // Copy app SDK (Android AAR library for apps to include)
