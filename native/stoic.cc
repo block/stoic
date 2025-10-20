@@ -910,7 +910,7 @@ static void AgentMain(jvmtiEnv* jvmti, JNIEnv* jni, [[maybe_unused]] void* arg) 
   // Setup args that we need for our ClassLoader
   //
 
-  std::string stoicApkChars = std::string(stoicDir.c_str()) + std::string("/stoic-runtime-attached.apk");
+  std::string stoicApkChars = std::string(stoicDir.c_str()) + std::string("/stoic-jvmti-attach.apk");
   LOG(DEBUG) << "stoicApkChars: " << stoicApkChars.c_str();
 
   std::string dexOutputDirChars = std::string(stoicDir.c_str()) + std::string("/dexout");
@@ -924,7 +924,7 @@ static void AgentMain(jvmtiEnv* jvmti, JNIEnv* jni, [[maybe_unused]] void* arg) 
 
 
   //
-  // Construct a new ClassLoader for stoic-runtime-attached.apk
+  // Construct a new ClassLoader for stoic-jvmti-attach.apk
   //
 
   ScopedLocalRef<jclass> klass_DexClassLoader(jni, jni->FindClass("dalvik/system/DexClassLoader"));

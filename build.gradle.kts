@@ -252,7 +252,7 @@ val buildDistribution by tasks.registering {
         ":host:main:nativeCompile",
         ":target:plugin-sdk:assemble",
         ":target:app-sdk:assembleRelease",
-        ":target:jvmti-attach:assembleRelease",
+        ":target:jvmti-attach:assembleDebug",
         ":demo-plugin:helloworld:apk",
         ":demo-plugin:appexitinfo:apk",
         ":demo-plugin:breakpoint:apk",
@@ -311,11 +311,11 @@ val buildDistribution by tasks.registering {
             rename { "stoic-app-sdk.aar" }
         }
 
-        // Copy jvmti-attach AAR (will be converted to APK by jar-to-apk-preserve-manifest later if needed)
+        // Copy jvmti-attach APK (debug build for easier debugging)
         copy {
-            from("target/jvmti-attach/build/outputs/aar/jvmti-attach-release.aar")
+            from("target/jvmti-attach/build/outputs/apk/debug/jvmti-attach-debug.apk")
             into("$syncDir/stoic")
-            rename { "stoic-jvmti-attach.aar" }
+            rename { "stoic-jvmti-attach.apk" }
         }
 
         // Copy demo apps

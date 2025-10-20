@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -10,6 +10,7 @@ android {
 
     defaultConfig {
         minSdk = (extra["stoic.android_min_sdk"] as String).toInt()
+        applicationId = "com.squareup.stoic.jvmti.attach"
     }
 
     compileOptions {
