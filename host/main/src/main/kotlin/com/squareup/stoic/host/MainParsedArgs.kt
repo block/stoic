@@ -1,10 +1,12 @@
-package com.squareup.stoic.common
+package com.squareup.stoic.host
 
 import com.squareup.stoic.common.LogLevel.DEBUG
 import com.squareup.stoic.common.LogLevel.ERROR
 import com.squareup.stoic.common.LogLevel.INFO
 import com.squareup.stoic.common.LogLevel.VERBOSE
 import com.squareup.stoic.common.LogLevel.WARN
+import com.squareup.stoic.common.logDebug
+import com.squareup.stoic.common.minLogLevel
 
 class MainParsedArgs(
   val stoicArgs: List<String>,

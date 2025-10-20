@@ -2,11 +2,11 @@
 
 package com.squareup.stoic.host.main
 
-import com.squareup.stoic.common.FileWithSha
 import com.squareup.stoic.common.LogLevel
-import com.squareup.stoic.common.Sha
 import com.squareup.stoic.common.logBlock
 import com.squareup.stoic.common.logInfo
+import com.squareup.stoic.host.FileWithSha
+import com.squareup.stoic.host.Sha
 import com.squareup.stoic.apk.jarToApkPreserveManifest
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable

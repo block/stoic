@@ -4,9 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.squareup.stoic.common.AttachVia
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
-import com.squareup.stoic.common.optionsJsonFromStoicDir
+import com.squareup.stoic.target.runtime.optionsJsonFromStoicDir
 import com.squareup.stoic.target.runtime.StoicUnixDomainSocketServer
 import java.io.File
 
@@ -19,7 +18,7 @@ class StoicBroadcastReceiver: BroadcastReceiver() {
     val stoicDir = context!!.getDir("stoic", Context.MODE_PRIVATE).absolutePath
     val optionsJsonPath = optionsJsonFromStoicDir(stoicDir)
     File(optionsJsonPath).writeText(
-      "{\"stoicProtocolVersion\":$STOIC_PROTOCOL_VERSION, \"attachedVia\":\"${AttachVia.SDK.str}\"}"
+      "{\"stoicProtocolVersion\":$STOIC_PROTOCOL_VERSION, \"attachedVia\":\"SDK\"}"
     )
     StoicUnixDomainSocketServer.ensureRunning(stoicDir = stoicDir, context = context.applicationContext)
     Log.i("stoic", "started server")

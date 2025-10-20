@@ -4,7 +4,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":common"))
+    implementation(project(":protocol"))
 }
 
 application {

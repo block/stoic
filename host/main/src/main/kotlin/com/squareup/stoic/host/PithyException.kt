@@ -1,4 +1,4 @@
-package com.squareup.stoic.common
+package com.squareup.stoic.host
 
 class PithyException(
   val pithyMsg: String?,

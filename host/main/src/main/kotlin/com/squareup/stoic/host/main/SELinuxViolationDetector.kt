@@ -2,8 +2,8 @@ package com.squareup.stoic.host.main
 
 import com.squareup.stoic.common.logDebug
 import com.squareup.stoic.common.logError
-import com.squareup.stoic.common.resolvedProcessBuilder
-import com.squareup.stoic.common.runCommand
+import com.squareup.stoic.host.resolvedProcessBuilder
+import com.squareup.stoic.host.runCommand
 import java.io.File
 import java.io.IOException
 import java.lang.ProcessBuilder.Redirect

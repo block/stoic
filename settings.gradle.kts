@@ -18,7 +18,7 @@ dependencyResolutionManagement {
 include("target:jvmti-attach")
 include("target:app-sdk")
 include("target:plugin-sdk")
-include("common")
+include("protocol")
 include("demo-app:without-sdk")
 include("demo-app:with-sdk")
 include("demo-plugin:appexitinfo")

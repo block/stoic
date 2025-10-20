@@ -16,7 +16,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.clikt)
     implementation(kotlin("stdlib"))
-    implementation(project(":common"))
+    implementation(project(":protocol"))
     implementation(project(":internal:tool:jar-to-apk-preserve-manifest"))
 }
 

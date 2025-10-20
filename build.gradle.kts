@@ -41,7 +41,7 @@ val androidCompileSdk = providers.gradleProperty("android.compileSdk").get()
 val androidTargetSdk = providers.gradleProperty("android.targetSdk").get()
 val androidBuildToolsVersion = providers.gradleProperty("android.buildToolsVersion").get()
 
-// Needed for :common code generation, since it needs it during configuration phase
+// Needed for :protocol code generation, since it needs it during configuration phase
 extra["stoic.version_name"] = versionName
 
 allprojects {

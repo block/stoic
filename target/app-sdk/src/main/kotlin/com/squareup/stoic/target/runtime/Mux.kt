@@ -1,4 +1,4 @@
-package com.squareup.stoic.common
+package com.squareup.stoic.target.runtime
 
 import java.io.DataInputStream
 import java.io.DataOutputStream

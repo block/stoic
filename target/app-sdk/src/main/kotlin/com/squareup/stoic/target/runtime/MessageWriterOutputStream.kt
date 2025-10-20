@@ -1,5 +1,7 @@
-package com.squareup.stoic.common
+package com.squareup.stoic.target.runtime
 
+import com.squareup.stoic.common.MessageWriter
+import com.squareup.stoic.common.logVerbose
 import java.io.OutputStream
 
 // Used to provide stdout/stderr

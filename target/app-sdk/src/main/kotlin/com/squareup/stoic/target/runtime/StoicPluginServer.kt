@@ -11,7 +11,6 @@ import com.squareup.stoic.common.LoadPlugin
 import com.squareup.stoic.common.Succeeded
 import com.squareup.stoic.common.MessageReader
 import com.squareup.stoic.common.MessageWriter
-import com.squareup.stoic.common.MessageWriterOutputStream
 import com.squareup.stoic.common.PluginFinished
 import com.squareup.stoic.common.ProtocolError
 import com.squareup.stoic.common.STDERR
@@ -22,7 +21,6 @@ import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.VerifyProtocolVersion
 import com.squareup.stoic.common.logInfo
 import com.squareup.stoic.common.logVerbose
-import com.squareup.stoic.common.runCommand
 import com.squareup.stoic.plugin.StoicPlugin
 import com.squareup.stoic.threadlocals.stoic
 import dalvik.system.DexClassLoader
@@ -301,7 +299,7 @@ class StoicPluginServer(
     val pluginByShaDir = File("$stoicDir/plugin-by-sha/${loadPlugin.pluginSha}")
     if (pluginByShaDir.exists()) {
       // We are reloading the directory - need to clear it first
-      runCommand(listOf("rm", "-rf", pluginByShaDir.canonicalPath))
+      pluginByShaDir.deleteRecursively()
     }
 
     pluginByShaDir.mkdirs()

@@ -24,5 +24,5 @@ android {
 }
 
 dependencies {
-    implementation(project(":target:app-sdk"))
+  implementation(project(":target:app-sdk"))
 }

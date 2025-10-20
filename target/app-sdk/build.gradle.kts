@@ -48,7 +48,7 @@ android {
 
 dependencies {
   // These dependencies will be transitive - users of app-sdk will automatically get them
-  api(project(":common"))
+  api(project(":protocol"))
   api(project(":target:plugin-sdk"))
   api(libs.kotlinx.serialization.json)
 }

@@ -1,4 +1,4 @@
-package com.squareup.stoic.common
+package com.squareup.stoic.host
 
 class PluginParsedArgs(
   val pluginModule: String,

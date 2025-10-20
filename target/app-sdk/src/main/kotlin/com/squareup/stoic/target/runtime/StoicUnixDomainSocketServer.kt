@@ -5,9 +5,7 @@ import android.net.LocalServerSocket
 import android.util.Log
 import com.squareup.stoic.common.JvmtiAttachOptions
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
-import com.squareup.stoic.common.optionsJsonFromStoicDir
 import com.squareup.stoic.common.serverSocketName
-import com.squareup.stoic.common.serverUpFile
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
