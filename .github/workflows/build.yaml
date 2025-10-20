@@ -31,7 +31,7 @@ jobs:
       - name: Build
         timeout-minutes: 30
         run: |
-          ./build.sh --yes --fail-fast
+          ./build.sh --yes
 
       - name: Pack build/distributions as tar (preserves perms & symlinks)
         run: tar --create --gzip --file=stoic-release.tar.gz --directory=build/distributions .

@@ -8,11 +8,9 @@ stoic_dir="$(realpath "$(dirname "$(readlink -f "$0")")")"
 
 # Parse arguments
 export AUTO_YES=0
-FAIL_FAST=""
 for arg in "$@"; do
     case $arg in
         --yes) AUTO_YES=1 ;;
-        --fail-fast) FAIL_FAST="--fail-fast" ;;
         *)
             >&2 echo "Unrecognized arg: $arg"
             exit 1
@@ -26,7 +24,7 @@ source "$stoic_dir/setup.sh"
 
 # Build everything and assemble distribution
 cd "$stoic_dir"
-./gradlew buildDistribution --parallel $FAIL_FAST
+./gradlew buildDistribution --parallel
 
 # Verify stoic is in PATH
 set +e
