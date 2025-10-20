@@ -20,6 +20,7 @@ import com.squareup.stoic.common.logVerbose
 import com.squareup.stoic.common.minLogLevel
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.io.EOFException
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -50,9 +51,12 @@ class PluginHost(
       }
       logDebug { succeeded.message }
     } catch (e: Exception) {
+      logDebug { "Failed to handle version result: ${e.stackTraceToString()}" }
+
       // We treat any exception encountered while handling the verify-protocol-version request as a
       // MismatchedVersionException because it's likely that a change in the structure of the
       // request/response is responsible for the problem.
+      // TODO: this is a little confusing because it could just be that the app wasn't even running
       throw MismatchedVersionException(e.message)
     }
   }

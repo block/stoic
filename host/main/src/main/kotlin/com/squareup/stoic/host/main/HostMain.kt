@@ -86,6 +86,15 @@ val adbSerial: String by lazy {
   }
 }
 
+data class PluginSpec(
+  val pkg: String,
+  val pluginModule: String,
+  val pluginArgs: List<String> = emptyList(),
+  val pluginEnvVars: Map<String, String> = emptyMap(),
+  val attachVia: AttachVia = AttachVia.JVMTI,
+  val restartApp: Boolean = false
+)
+
 class Entrypoint : CliktCommand(
   name = "stoic",
 ) {
@@ -245,6 +254,17 @@ class Entrypoint : CliktCommand(
 
   val subcommand by argument(name = "plugin").optional()
   val subcommandArgs by argument(name = "plugin-args").multiple()
+
+  fun toPluginSpec(pluginModule: String? = null, pluginArgs: List<String>? = null): PluginSpec {
+    return PluginSpec(
+      pkg = pkg,
+      pluginModule = pluginModule ?: subcommand!!,
+      pluginArgs = pluginArgs ?: subcommandArgs,
+      pluginEnvVars = env.toMap(),
+      attachVia = attachVia,
+      restartApp = restartApp
+    )
+  }
 
   var demoAllowed = false
   var embeddedAllowed = false
@@ -526,34 +546,32 @@ fun runList(entrypoint: Entrypoint): Int {
     // Show user and demo plugins
     val pluginList = gatherPluginList(entrypoint).toMutableList()
 
-    val pluginParsedArgs = PluginParsedArgs(
-      pluginModule = "__stoic-list",
-      pluginArgs = emptyList(),
-      pluginEnvVars = emptyMap()
-    )
-
-    // Capture output from stoic-list - we need to temporarily redirect System.out
-    // TODO: Provide an API for running a plugin that allows overriding stdin/stdout/stderr directly
-    val originalOut = System.out
-    val capturedOutput = java.io.ByteArrayOutputStream()
-    System.setOut(java.io.PrintStream(capturedOutput))
-    try {
-      val exitCode = runPluginFastPath(
-        pkg = entrypoint.pkg,
-        pluginParsedArgs = pluginParsedArgs,
-        apkInfo = null
+    // If package is specified, also get embedded plugins via __stoic-list
+    if (entrypoint.rawPkg != null) {
+      val listSpec = entrypoint.toPluginSpec(
+        pluginModule = "__stoic-list",
+        pluginArgs = emptyList()
       )
 
-      if (exitCode == 0) {
-        // Add embedded plugins to the list (filtering out internal plugins)
-        capturedOutput.toString().trim().lines().forEach { pluginName ->
-          if (pluginName.isNotBlank() && !isInternalPluginName(pluginName)) {
-            pluginList.add("$pluginName (--embedded)")
+      // Capture output from __stoic-list - we need to temporarily redirect System.out
+      // TODO: Provide an API for running a plugin that allows overriding stdin/stdout/stderr directly
+      val originalOut = System.out
+      val capturedOutput = java.io.ByteArrayOutputStream()
+      System.setOut(java.io.PrintStream(capturedOutput))
+      try {
+        val exitCode = runPlugin(listSpec, apkInfo = null)
+
+        if (exitCode == 0) {
+          // Add embedded plugins to the list (filtering out internal plugins)
+          capturedOutput.toString().trim().lines().forEach { pluginName ->
+            if (pluginName.isNotBlank() && !isInternalPluginName(pluginName)) {
+              pluginList.add("$pluginName (--embedded)")
+            }
           }
         }
+      } finally {
+        System.setOut(originalOut)
       }
-    } finally {
-      System.setOut(originalOut)
     }
 
     pluginList.forEach {
@@ -730,16 +748,25 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
   }
 }
 
-fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
-  if (!entrypoint.restartApp) {
+fun runPlugin(spec: PluginSpec, apkInfo: FileWithSha?): Int {
+  if (!spec.restartApp) {
     try {
-      return runPluginFastPath(entrypoint, apkInfo)
+      return runPluginFastPath(
+        pkg = spec.pkg,
+        pluginParsedArgs = PluginParsedArgs(
+          pluginModule = spec.pluginModule,
+          pluginArgs = spec.pluginArgs,
+          pluginEnvVars = spec.pluginEnvVars
+        ),
+        apkInfo = apkInfo
+      )
     } catch (e: PithyException) {
       // PithyException will be caught at the outermost level
       throw e
     } catch (e: Exception) {
       logInfo { "fast-path failed" }
       logDebug { e.stackTraceToString() }
+      // fall through to slow path
     }
   }
 
@@ -752,10 +779,8 @@ fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
     // needed for the slow path - so it's not too bad.
     syncDevice()
 
-    val startOption = if (entrypoint.restartApp) {
+    val startOption = if (spec.restartApp) {
       "restart"
-    } else if (entrypoint.noStartIfNeeded) {
-      "do_not_start"
     } else {
       "start_if_needed"
     }
@@ -772,10 +797,10 @@ fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
         listOf(
           "$stoicDeviceSyncDir/bin/stoic-attach",
           "$STOIC_PROTOCOL_VERSION",
-          entrypoint.pkg,
+          spec.pkg,
           startOption,
           debugOption,
-          entrypoint.attachVia.str
+          spec.attachVia.str
         )
       )
     )
@@ -808,10 +833,10 @@ fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
     }
 
     if (maybeError != null) {
-      if (entrypoint.attachVia == AttachVia.JVMTI_ROOT) {
+      if (spec.attachVia == AttachVia.JVMTI_ROOT) {
         if (maybeError.contains("Can't attach agent, process is not debuggable")) {
           throw PithyException("""
-            ${entrypoint.pkg} appears to not have JDWP enabled
+            ${spec.pkg} appears to not have JDWP enabled
 
             To fix this you can run the following (may need to set ANDROID_SERIAL appropriately):
               adb shell su 0 setprop persist.debug.dalvik.vm.jdwp.enabled '"1"' && adb shell su 0 stop && adb shell su 0 start && sleep 3
@@ -829,7 +854,7 @@ fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
     while ((System.nanoTime() - startTime) < 3_000_000_000) {
       try {
         runPluginFastPath(
-          entrypoint.pkg,
+          spec.pkg,
           PluginParsedArgs("__stoic-noop"),
           null,
         )
@@ -844,7 +869,19 @@ fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
 
 
   logInfo { "server up - retrying fast-path" }
-  return runPluginFastPath(entrypoint, apkInfo)
+  return runPluginFastPath(
+    pkg = spec.pkg,
+    pluginParsedArgs = PluginParsedArgs(
+      pluginModule = spec.pluginModule,
+      pluginArgs = spec.pluginArgs,
+      pluginEnvVars = spec.pluginEnvVars
+    ),
+    apkInfo = apkInfo
+  )
+}
+
+fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
+  return runPlugin(entrypoint.toPluginSpec(), apkInfo)
 }
 
 fun syncDevice() {
