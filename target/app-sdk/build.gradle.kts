@@ -47,11 +47,9 @@ android {
 }
 
 dependencies {
-  implementation(project(":common"))
-  implementation(project(":target:plugin-sdk"))
-  implementation(project(":target:runtime:core"))
-  implementation("com.android.support:appcompat-v7:28.0.0")
-  testImplementation("junit:junit:4.13.2")
-  androidTestImplementation("com.android.support.test:runner:1.0.2")
-  androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")
+  // These dependencies will be transitive - users of app-sdk will automatically get them
+  api(project(":common"))
+  api(project(":target:plugin-sdk"))
+  api(project(":generated-bridge"))
+  api(libs.kotlinx.serialization.json)
 }

@@ -251,8 +251,8 @@ val buildDistribution by tasks.registering {
         ":host:main:assemble",
         ":host:main:nativeCompile",
         ":target:plugin-sdk:assemble",
-        ":target:runtime:app-sdk:assembleRelease",
-        ":target:runtime:attached:apk",
+        ":target:app-sdk:assembleRelease",
+        ":target:jvmti-attach:assembleRelease",
         ":demo-plugin:helloworld:apk",
         ":demo-plugin:appexitinfo:apk",
         ":demo-plugin:breakpoint:apk",
@@ -306,16 +306,16 @@ val buildDistribution by tasks.registering {
 
         // Copy app SDK (Android AAR library for apps to include)
         copy {
-            from("target/runtime/app-sdk/build/outputs/aar/app-sdk-release.aar")
+            from("target/app-sdk/build/outputs/aar/app-sdk-release.aar")
             into("$releaseDir/sdk")
             rename { "stoic-app-sdk.aar" }
         }
 
-        // Copy runtime APK
+        // Copy jvmti-attach AAR (will be converted to APK by jar-to-apk-preserve-manifest later if needed)
         copy {
-            from("target/runtime/attached/build/libs/attached-$versionName.apk")
+            from("target/jvmti-attach/build/outputs/aar/jvmti-attach-release.aar")
             into("$syncDir/stoic")
-            rename { "stoic-runtime-attached.apk" }
+            rename { "stoic-jvmti-attach.aar" }
         }
 
         // Copy demo apps

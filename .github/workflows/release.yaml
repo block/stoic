@@ -86,7 +86,7 @@ jobs:
 
       - name: Print publishing info
         run: |
-          ./gradlew :target:plugin-sdk:printPublishingInfo :target:runtime:app-sdk:printPublishingInfo
+          ./gradlew :target:plugin-sdk:printPublishingInfo :target:app-sdk:printPublishingInfo
 
       - name: Publish plugin-sdk JAR to Maven Central
         run: |
@@ -101,7 +101,7 @@ jobs:
 
       - name: Publish app-sdk AAR to Maven Central
         run: |
-          ./gradlew :target:runtime:app-sdk:publish \
+          ./gradlew :target:app-sdk:publish \
             -PartifactFile=$(pwd)/sdk/stoic-app-sdk.aar \
             --info
         env:

@@ -56,6 +56,6 @@ dependencies {
   testImplementation("junit:junit:4.13.2")
   androidTestImplementation("com.android.support.test:runner:1.0.2")
   androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")
-  implementation(project(":target:runtime:app-sdk"))
+  implementation(project(":target:app-sdk"))
   implementation(project(":target:plugin-sdk"))
 }

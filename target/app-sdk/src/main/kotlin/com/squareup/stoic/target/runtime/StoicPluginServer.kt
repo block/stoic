@@ -47,11 +47,7 @@ class StoicPluginServer(
 ) {
   private val writer = MessageWriter(DataOutputStream(socketOutputStream))
   private val reader = MessageReader(DataInputStream(socketInputStream))
-  private val embeddedPlugins: Map<String, StoicPlugin>
-
-  init {
-    logVerbose { "constructed writer from ${writer.dataOutputStream} (underlying ${socketOutputStream})" }
-    logVerbose { "constructed reader from ${reader.dataInputStream} (underlying ${socketInputStream})" }
+  private val embeddedPlugins: Map<String, StoicPlugin> = run {
     val defaultPlugins = mapOf(
       "stoic-status" to object : StoicPlugin {
         override fun run(args: List<String>): Int {
@@ -80,7 +76,12 @@ class StoicPluginServer(
         }
       },
     )
-    embeddedPlugins = defaultPlugins + extraPlugins
+    defaultPlugins + extraPlugins
+  }
+
+  init {
+    logVerbose { "constructed writer from ${writer.dataOutputStream} (underlying ${socketOutputStream})" }
+    logVerbose { "constructed reader from ${reader.dataInputStream} (underlying ${socketInputStream})" }
   }
 
 

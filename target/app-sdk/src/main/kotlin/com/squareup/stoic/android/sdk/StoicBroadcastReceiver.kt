@@ -4,10 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.squareup.stoic.target.runtime.StoicUnixDomainSocketServer
 import com.squareup.stoic.common.AttachVia
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.optionsJsonFromStoicDir
+import com.squareup.stoic.target.runtime.StoicUnixDomainSocketServer
 import java.io.File
 
 class StoicBroadcastReceiver: BroadcastReceiver() {

@@ -15,10 +15,8 @@ dependencyResolutionManagement {
   }
 }
 
-include("target:common")
-include("target:runtime:core")
-include("target:runtime:attached")
-include("target:runtime:app-sdk")
+include("target:jvmti-attach")
+include("target:app-sdk")
 include("target:plugin-sdk")
 include("generated-bridge")
 include("common")
