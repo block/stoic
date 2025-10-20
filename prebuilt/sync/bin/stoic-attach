@@ -294,13 +294,13 @@ if [ -n "$demo_apk" ]; then
   if [ "$needs_install" = "true" ]; then
     # Try to install with -r flag first - if that fails, uninstall and retry
     if ! pm install -r "$demo_apk" 2>&1; then
-      # Install succeeded
-      mkdir -p "$(dirname "$apk_timestamp_file")"
-      echo "$apk_mtime" > "$apk_timestamp_file"
-    else
       # Fall-back to uninstall and retry (e.g. if signature changed)
       pm uninstall "$pkg"
       pm install "$demo_apk"
+      mkdir -p "$(dirname "$apk_timestamp_file")"
+      echo "$apk_mtime" > "$apk_timestamp_file"
+    else
+      # Install succeeded
       mkdir -p "$(dirname "$apk_timestamp_file")"
       echo "$apk_mtime" > "$apk_timestamp_file"
     fi

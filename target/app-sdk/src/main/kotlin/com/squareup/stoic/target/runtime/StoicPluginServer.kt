@@ -46,8 +46,9 @@ class StoicPluginServer(
   private val writer = MessageWriter(DataOutputStream(socketOutputStream))
   private val reader = MessageReader(DataInputStream(socketInputStream))
   private val embeddedPlugins: Map<String, StoicPlugin> = run {
+    // Internal plugins prefixed with __ are hidden from --list output
     val defaultPlugins = mapOf(
-      "stoic-status" to object : StoicPlugin {
+      "__stoic-status" to object : StoicPlugin {
         override fun run(args: List<String>): Int {
           stoic.stdout.println(
             """
@@ -60,14 +61,16 @@ class StoicPluginServer(
           return 0
         }
       },
-      "stoic-list" to object : StoicPlugin {
+      "__stoic-list" to object : StoicPlugin {
         override fun run(args: List<String>): Int {
-          embeddedPlugins.keys.forEach { stoic.stdout.println(it) }
+          embeddedPlugins.keys.sorted().filter { !it.startsWith("__stoic-") }.forEach {
+            stoic.stdout.println(it)
+          }
 
           return 0
         }
       },
-      "stoic-noop" to object : StoicPlugin {
+      "__stoic-noop" to object : StoicPlugin {
         override fun run(args: List<String>): Int {
           // This is used to ensure the server is running
           return 0

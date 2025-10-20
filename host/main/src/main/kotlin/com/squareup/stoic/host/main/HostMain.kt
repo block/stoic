@@ -514,7 +514,7 @@ fun main(rawArgs: Array<String>) {
 }
 
 fun runList(entrypoint: Entrypoint): Int {
-  entrypoint.verifyOptions("--list", listOf())
+  entrypoint.verifyOptions("--list", listOf("--package", "--pkg", "--attach-via"))
   if (entrypoint.subcommand != null) {
     throw UsageError("`stoic --list` doesn't take positional arguments")
   } else if (entrypoint.isTool) {
@@ -523,7 +523,39 @@ fun runList(entrypoint: Entrypoint): Int {
       println(it)
     }
   } else {
-    val pluginList = gatherPluginList(entrypoint)
+    // Show user and demo plugins
+    val pluginList = gatherPluginList(entrypoint).toMutableList()
+
+    val pluginParsedArgs = PluginParsedArgs(
+      pluginModule = "__stoic-list",
+      pluginArgs = emptyList(),
+      pluginEnvVars = emptyMap()
+    )
+
+    // Capture output from stoic-list - we need to temporarily redirect System.out
+    // TODO: Provide an API for running a plugin that allows overriding stdin/stdout/stderr directly
+    val originalOut = System.out
+    val capturedOutput = java.io.ByteArrayOutputStream()
+    System.setOut(java.io.PrintStream(capturedOutput))
+    try {
+      val exitCode = runPluginFastPath(
+        pkg = entrypoint.pkg,
+        pluginParsedArgs = pluginParsedArgs,
+        apkInfo = null
+      )
+
+      if (exitCode == 0) {
+        // Add embedded plugins to the list (filtering out internal plugins)
+        capturedOutput.toString().trim().lines().forEach { pluginName ->
+          if (pluginName.isNotBlank() && !isInternalPluginName(pluginName)) {
+            pluginList.add("$pluginName (--embedded)")
+          }
+        }
+      }
+    } finally {
+      System.setOut(originalOut)
+    }
+
     pluginList.forEach {
       println(it)
     }
@@ -532,8 +564,11 @@ fun runList(entrypoint: Entrypoint): Int {
   return 0
 }
 
+fun isInternalPluginName(name: String): Boolean {
+  return name.startsWith("__stoic-")
+}
+
 fun gatherPluginList(entrypoint: Entrypoint): List<String> {
-  // TODO: Invoke embedded stoic-list to get list of embedded plugins (and allow --package)
   val pluginList = mutableListOf<String>()
 
   val apkFilter = object : FileFilter {
@@ -640,6 +675,15 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
   // (if we resolved the device) if that fails, then we'll check for a tool
   val apkInfo = resolveUserOrDemo(entrypoint)
 
+  // We have somewhat complex logic for determining whether the specified command is a plugin or
+  // a tool. Treating tools like plugins allows us to have separate args for them.
+  //   e.g. In `stoic plugin --create foo`, `--create` is specific to the `plugin` tool.
+  // But we want to avoid the problem of people creating their own plugins that conflict with tool
+  // names. The problem could get even worse if we add a new tool in the future that conflicts with
+  // a plugin others have been using for a long time.
+  // To avoid such problems, we have the rule that an invocation can only resolve to a tool if the
+  // package is not specified. We control what plugins are present in the default package so we can
+  // prevent conflicts.
   val usingDefaultPackage = entrypoint.rawPkg == null
   val isPlugin = if (apkInfo != null || entrypoint.isEmbedded) {
     true
@@ -650,10 +694,9 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
     // Tools are only valid with the default package, so this must be a plugin
     true
   } else {
-    // These are the only embedded plugins for the default package - if it's
-    // not one of these then it must be a tool.
-    // TODO: validate this list is sync'd with the actual supported plugins
-    entrypoint.subcommand in listOf("stoic-list", "stoic-status", "stoic-noop")
+    // The default package only has no embedded plugins other than the internal ones - if it's not
+    // one of these then it must be a tool.
+    entrypoint.subcommand?.let { isInternalPluginName(it) } ?: false
   }
 
   return if (isPlugin) {
@@ -787,7 +830,7 @@ fun runPlugin(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
       try {
         runPluginFastPath(
           entrypoint.pkg,
-          PluginParsedArgs("stoic-noop"),
+          PluginParsedArgs("__stoic-noop"),
           null,
         )
         break
