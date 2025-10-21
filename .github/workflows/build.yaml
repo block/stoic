@@ -38,3 +38,56 @@ jobs:
         with:
           name: stoic-release-tar-gz
           path: stoic-release.tar.gz
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 29, 30, 35]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Temurin 17 (default JDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+
+      # Enable KVM for better emulator performance
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: stoic-release-tar-gz
+
+      - name: Unpack build artifacts
+        run: |
+          mkdir -p build/distributions
+          tar -C build/distributions -xzf stoic-release.tar.gz
+          chmod +x build/distributions/bin/jvm/stoic
+
+      - name: Run tests on Android emulator (API ${{ matrix.api-level }})
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: default
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set -eu
+            adb wait-for-device
+            adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done'
+            echo "Emulator is ready"
+            PATH="$PWD/build/distributions/bin/jvm:$PATH" test/run-all-tests-on-connected-device.sh

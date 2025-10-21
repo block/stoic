@@ -44,12 +44,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify test workflow passed for this commit
-        run: |
-          .github/scripts/wait-for-test-workflow.sh $GITHUB_SHA
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download build artifact
         run: |
           gh run download ${{ steps.find-build.outputs.BUILD_RUN_ID }} -n stoic-release-tar-gz -D artifacts
