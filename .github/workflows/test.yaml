@@ -18,8 +18,12 @@ jobs:
       matrix:
         api-level: [26, 29, 30, 35]
     steps:
-      - uses: actions/checkout@v4
-        with: { submodules: recursive, fetch-depth: 0 }
+      - uses: actions/checkout@v5
+        with:
+          # When triggered by workflow_run, check out the same commit that triggered the build
+          # (otherwise it checks out the default branch)
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+          repository: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
 
       - name: Set up Temurin 17 (default JDK)
         uses: actions/setup-java@v4
