@@ -39,41 +39,47 @@ import kotlin.concurrent.thread
 class StoicPluginServer(
   private val stoicDir: String,
   private val options: JvmtiAttachOptions,
-  extraPlugins: Map<String, StoicPlugin>,
+  extraPlugins: Map<String, Lazy<StoicPlugin>>,
   private val socketInputStream: InputStream,
   private val socketOutputStream: OutputStream,
 ) {
   private val writer = MessageWriter(DataOutputStream(socketOutputStream))
   private val reader = MessageReader(DataInputStream(socketInputStream))
-  private val embeddedPlugins: Map<String, StoicPlugin> = run {
+  private val embeddedPlugins: Map<String, Lazy<StoicPlugin>> = run {
     // Internal plugins prefixed with __ are hidden from --list output
     val defaultPlugins = mapOf(
-      "__stoic-status" to object : StoicPlugin {
-        override fun run(args: List<String>): Int {
-          stoic.stdout.println(
-            """
-              protocol-version: ${options.stoicProtocolVersion}
-              attached-via: ${options.attachedVia}
-              embedded-plugins: ${embeddedPlugins.keys}
-            """.trimIndent()
-          )
+      "__stoic-status" to lazy {
+        object : StoicPlugin {
+          override fun run(args: List<String>): Int {
+            stoic.stdout.println(
+              """
+                protocol-version: ${options.stoicProtocolVersion}
+                attached-via: ${options.attachedVia}
+                embedded-plugins: ${embeddedPlugins.keys}
+              """.trimIndent()
+            )
 
-          return 0
-        }
-      },
-      "__stoic-list" to object : StoicPlugin {
-        override fun run(args: List<String>): Int {
-          embeddedPlugins.keys.sorted().filter { !it.startsWith("__stoic-") }.forEach {
-            stoic.stdout.println(it)
+            return 0
           }
-
-          return 0
         }
       },
-      "__stoic-noop" to object : StoicPlugin {
-        override fun run(args: List<String>): Int {
-          // This is used to ensure the server is running
-          return 0
+      "__stoic-list" to lazy {
+        object : StoicPlugin {
+          override fun run(args: List<String>): Int {
+            embeddedPlugins.keys.sorted().filter { !it.startsWith("__stoic-") }.forEach {
+              stoic.stdout.println(it)
+            }
+
+            return 0
+          }
+        }
+      },
+      "__stoic-noop" to lazy {
+        object : StoicPlugin {
+          override fun run(args: List<String>): Int {
+            // This is used to ensure the server is running
+            return 0
+          }
         }
       },
     )
@@ -212,7 +218,7 @@ class StoicPluginServer(
           }
         }
       } else if (startPlugin.pluginName != null) {
-        val p = embeddedPlugins[startPlugin.pluginName]
+        val p = embeddedPlugins[startPlugin.pluginName]?.value
         if (p == null) {
           val msg = "No embedded plugin named: ${startPlugin.pluginName}"
           Log.i("stoic", msg)

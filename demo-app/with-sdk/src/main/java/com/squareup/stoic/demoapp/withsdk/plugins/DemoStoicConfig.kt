@@ -11,9 +11,9 @@ import com.squareup.stoic.plugin.StoicPlugin
  * discovered by Stoic when it attaches (via JVMTI or BroadcastReceiver).
  */
 class DemoStoicConfig : StoicConfig {
-    override fun getPlugins(context: Context): Map<String, StoicPlugin> {
+    override fun getPlugins(context: Context): Map<String, Lazy<StoicPlugin>> {
         return mapOf(
-            "demo-embedded" to DemoEmbeddedPlugin()
+            "demo-embedded" to lazy { DemoEmbeddedPlugin() }
         )
     }
 }

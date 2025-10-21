@@ -43,8 +43,10 @@ interface StoicConfig {
      * Plugin names should be lowercase and use hyphens for word separation (e.g., "my-plugin").
      * These names are used on the command line: `stoic PACKAGE PLUGIN_NAME`
      *
+     * Plugins are lazy-loaded to avoid initialization overhead for unused plugins.
+     *
      * @param context The application context
-     * @return Map of plugin name to plugin instance
+     * @return Map of plugin name to lazy plugin instance
      */
-    fun getPlugins(context: Context): Map<String, StoicPlugin>
+    fun getPlugins(context: Context): Map<String, Lazy<StoicPlugin>>
 }
