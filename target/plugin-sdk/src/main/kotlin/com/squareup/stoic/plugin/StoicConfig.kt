@@ -19,10 +19,10 @@ import android.content.Context
  *
  * ```kotlin
  * class MyStoicConfig : StoicConfig {
- *     override fun getPlugins(context: Context): Map<String, StoicPlugin> {
+ *     override fun getPlugins(context: Context): Map<String, Lazy<StoicPlugin>> {
  *         return mapOf(
- *             "my-plugin" to MyPlugin(context),
- *             "another-plugin" to AnotherPlugin()
+ *             "my-plugin" to lazy { MyPlugin(context) },
+ *             "another-plugin" to lazy { AnotherPlugin() }
  *         )
  *     }
  * }
