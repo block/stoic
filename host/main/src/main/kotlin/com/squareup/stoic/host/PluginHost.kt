@@ -50,13 +50,15 @@ class PluginHost(
         it.payload as Succeeded
       }
       logDebug { succeeded.message }
+    } catch (e: EOFException) {
+      // This means the server isn't up yet
+      throw e
     } catch (e: Exception) {
       logDebug { "Failed to handle version result: ${e.stackTraceToString()}" }
 
-      // We treat any exception encountered while handling the verify-protocol-version request as a
-      // MismatchedVersionException because it's likely that a change in the structure of the
+      // We treat any other exception encountered while handling the verify-protocol-version request
+      // as a MismatchedVersionException because it's likely that a change in the structure of the
       // request/response is responsible for the problem.
-      // TODO: this is a little confusing because it could just be that the app wasn't even running
       throw MismatchedVersionException(e.message)
     }
   }
