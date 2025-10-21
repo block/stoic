@@ -7,9 +7,6 @@ on:
     workflows: ["build"]
     types:
       - completed
-    branches:
-      - main
-      - 'release/**'
 
 jobs:
   test:
