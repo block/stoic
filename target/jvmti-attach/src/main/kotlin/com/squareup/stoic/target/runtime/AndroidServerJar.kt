@@ -9,7 +9,7 @@ import com.squareup.stoic.common.minLogLevel
 fun main(stoicDir: String) {
   Log.i("stoic", "start of AndroidServerJarKt.main")
 
-  minLogLevel = LogLevel.VERBOSE
+  minLogLevel = LogLevel.WARN
 
   // RegisterNatives happened before we were called, so we mark Jvmti as ready to use
   StoicJvmti.markInitialized()

@@ -48,5 +48,5 @@ interface StoicConfig {
      * @param context The application context
      * @return Map of plugin name to lazy plugin instance
      */
-    fun getPlugins(context: Context): Map<String, Lazy<StoicPlugin>>
+    fun getEmbeddedPlugins(context: Context): Map<String, Lazy<StoicPlugin>>
 }

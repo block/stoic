@@ -14,7 +14,7 @@ object StoicConfigLoader {
     private const val METADATA_KEY = "com.squareup.stoic.config"
 
     private val DEFAULT_CONFIG = object : StoicConfig {
-        override fun getPlugins(context: Context): Map<String, Lazy<StoicPlugin>> = emptyMap()
+        override fun getEmbeddedPlugins(context: Context): Map<String, Lazy<StoicPlugin>> = emptyMap()
     }
 
     /**
