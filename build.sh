@@ -27,7 +27,7 @@ cd "$stoic_dir"
 
 # unquoted EXTRA_GRADLE_ARGS is intentional
 # shellcheck disable=SC2086
-./gradlew buildDistribution --parallel $EXTRA_GRADLE_ARGS
+./gradlew buildDistribution --parallel ${EXTRA_GRADLE_ARGS:-}
 
 # Verify stoic is in PATH
 set +e
