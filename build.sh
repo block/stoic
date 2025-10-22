@@ -24,7 +24,7 @@ source "$stoic_dir/setup.sh"
 
 # Build everything and assemble distribution
 cd "$stoic_dir"
-./gradlew buildDistribution --parallel
+./gradlew buildDistribution --parallel $EXTRA_GRADLE_ARGS
 
 # Verify stoic is in PATH
 set +e

@@ -210,6 +210,7 @@ subprojects {
             val apkFile = jarFile.map { File(it.path.replace(".jar", ".apk")) }
 
             val jarToApkPreserveManifest = project(":internal:tool:jar-to-apk-preserve-manifest")
+            // TODO: This triggers a configuration resolution warning in Gradle - needs refactoring to use proper dependency management
             classpath = jarToApkPreserveManifest
               .extensions
               .getByType<JavaPluginExtension>()
@@ -357,6 +358,7 @@ val buildDistribution by tasks.registering {
         }
 
         // Set permissions on sync directory
+        // TODO: exec() is deprecated - refactor to use ExecOperations with a typed task
         exec {
             commandLine("chmod", "-R", "a+rw", syncDir.absolutePath)
         }

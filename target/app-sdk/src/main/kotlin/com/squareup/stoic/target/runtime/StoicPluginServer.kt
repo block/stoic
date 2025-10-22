@@ -251,7 +251,7 @@ class StoicPluginServer(
 
       writer.writeResponse(startPluginRequestId, Succeeded("Plugin started"))
 
-      var exitCode = -1
+      var exitCode: Int
       val t = thread {
         exitCode = pluginStoic.callWith {
           // Run plugin on main thread to ensure thread-safe execution

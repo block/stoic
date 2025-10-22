@@ -24,6 +24,8 @@ class ExampleActivity : AppCompatActivity() {
   private lateinit var fullscreenContentControls: LinearLayout
   private val hideHandler = Handler(Looper.myLooper()!!)
 
+  // Suppress DEPRECATION: systemUiVisibility is deprecated in API 30+, but required for API 26-29 support
+  @Suppress("DEPRECATION")
   @SuppressLint("InlinedApi")
   private val hidePart2Runnable = Runnable {
     // Delayed removal of status and navigation bar
@@ -122,6 +124,8 @@ class ExampleActivity : AppCompatActivity() {
     hideHandler.postDelayed(hidePart2Runnable, UI_ANIMATION_DELAY.toLong())
   }
 
+  // Suppress DEPRECATION: systemUiVisibility is deprecated in API 30+, but required for API 26-29 support
+  @Suppress("DEPRECATION")
   private fun show() {
     // Show the system bar
     if (Build.VERSION.SDK_INT >= 30) {
