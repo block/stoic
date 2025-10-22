@@ -23,6 +23,7 @@ import com.github.ajalt.clikt.parameters.options.transformValues
 import com.github.ajalt.clikt.parameters.options.versionOption
 import com.github.ajalt.clikt.parameters.types.enum
 import com.squareup.stoic.bridge.StoicProperties
+import com.squareup.stoic.bridge.versionCodeFromVersionName
 import com.squareup.stoic.common.LogLevel
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.logBlock
@@ -81,6 +82,22 @@ val adbSerial: String by lazy {
           } ?: run { throw e }
         }
     }
+}
+
+fun getDefaultAttachVia(): AttachVia {
+  val defaultAttach = System.getenv("STOIC_ATTACH_VIA")
+  return when (defaultAttach?.lowercase()) {
+    "sdk" -> AttachVia.SDK
+    "jvmti-root" -> AttachVia.JVMTI_ROOT
+    "jvmti" -> AttachVia.JVMTI
+    null,
+    "" -> AttachVia.JVMTI // Default if not set
+    else -> {
+      throw PithyException(
+        "Warning: Invalid STOIC_ATTACH_VIA value '$defaultAttach'. Valid values are: sdk, jvmti-root, jvmti. Using default: jvmti"
+      )
+    }
+  }
 }
 
 data class PluginSpec(
@@ -199,10 +216,15 @@ class Entrypoint : CliktCommand(name = "stoic") {
   }
 
   val attachVia by
-    option("--attach-via", "-a", help = "Specify the method to attach to the target process")
+    option(
+        "--attach-via",
+        "-a",
+        help =
+          "Specify the method (jvmti, jvmti-root, or sdk) to attach to the target process (defaults to \$STOIC_ATTACH_VIA or jvmti if not otherwise specified)",
+      )
       .trackableOption()
       .enum<AttachVia>()
-      .default(AttachVia.JVMTI)
+      .default(getDefaultAttachVia())
 
   // TODO: support --pid/-p to allow attaching by pid
 
@@ -480,37 +502,57 @@ fun syncSdk() {
 }
 
 fun main(rawArgs: Array<String>) {
-  isGraal = System.getProperty("org.graalvm.nativeimage.imagecode") != null
-  stoicReleaseDir =
-    if (isGraal) {
-      // This is how we find the release dir from the GraalVM-generated binary
-      // The graalvm-binary will be in bin/darwin-arm64/stoic, so we need to walk up three parents.
-      val pathToSelf = ProcessHandle.current().info().command().get()
-      Paths.get(pathToSelf).toRealPath().parent.parent.parent.toAbsolutePath().toString()
-    } else {
-      // This is how we find the release dir when normally (via a jar)
-      // The jar file will be in jar/stoic-host-main.jar, so we need to walk up two parents.
-      val uri = Entrypoint::class.java.protectionDomain.codeSource.location.toURI()
-      File(uri).toPath().parent.parent.toAbsolutePath().toString()
-    }
-
-  minLogLevel = LogLevel.WARN
-
-  stoicReleaseSyncDir = "$stoicReleaseDir/sync"
-  stoicDemoPluginsDir = "$stoicReleaseDir/demo-plugins"
-
-  stoicHostUsrConfigDir =
-    System.getenv("STOIC_CONFIG").let {
-      if (it.isNullOrBlank()) {
-        "${System.getenv("HOME")}/.config/stoic"
+  try {
+    minLogLevel = LogLevel.WARN
+    isGraal = System.getProperty("org.graalvm.nativeimage.imagecode") != null
+    stoicReleaseDir =
+      if (isGraal) {
+        // This is how we find the release dir from the GraalVM-generated binary
+        // The graalvm-binary will be in bin/darwin-arm64/stoic, so we need to walk up three
+        // parents.
+        val pathToSelf = ProcessHandle.current().info().command().get()
+        Paths.get(pathToSelf).toRealPath().parent.parent.parent.toAbsolutePath().toString()
       } else {
-        it
+        // This is how we find the release dir when normally (via a jar)
+        // The jar file will be in jar/stoic-host-main.jar, so we need to walk up two parents.
+        val uri = Entrypoint::class.java.protectionDomain.codeSource.location.toURI()
+        File(uri).toPath().parent.parent.toAbsolutePath().toString()
+      }
+
+    // Check STOIC_REQUIRED_VERSION environment variable
+    val requiredVersionStr = System.getenv("STOIC_REQUIRED_VERSION")
+    if (!requiredVersionStr.isNullOrBlank()) {
+      val currentVersion = versionCodeFromVersionName(StoicProperties.STOIC_VERSION_NAME)
+      val requiredVersion =
+        try {
+          versionCodeFromVersionName(requiredVersionStr)
+        } catch (e: Exception) {
+          throw PithyException(
+            "Could not parse \$STOIC_REQUIRED_VERSION as semantic version: $requiredVersionStr"
+          )
+        }
+
+      if (currentVersion < requiredVersion) {
+        throw PithyException(
+          "Error: Stoic version ${StoicProperties.STOIC_VERSION_NAME} is lower than required version $requiredVersionStr specified via \$STOIC_REQUIRED_VERSION"
+        )
       }
     }
-  stoicHostUsrPluginSrcDir = "$stoicHostUsrConfigDir/plugin"
-  stoicHostUsrSdkDir = "$stoicHostUsrConfigDir/sdk"
 
-  try {
+    stoicReleaseSyncDir = "$stoicReleaseDir/sync"
+    stoicDemoPluginsDir = "$stoicReleaseDir/demo-plugins"
+
+    stoicHostUsrConfigDir =
+      System.getenv("STOIC_CONFIG").let {
+        if (it.isNullOrBlank()) {
+          "${System.getenv("HOME")}/.config/stoic"
+        } else {
+          it
+        }
+      }
+    stoicHostUsrPluginSrcDir = "$stoicHostUsrConfigDir/plugin"
+    stoicHostUsrSdkDir = "$stoicHostUsrConfigDir/sdk"
+
     Entrypoint().main(rawArgs)
     exitProcess(0)
   } catch (e: PithyException) {
