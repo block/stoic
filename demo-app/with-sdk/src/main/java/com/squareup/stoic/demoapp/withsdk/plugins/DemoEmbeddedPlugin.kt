@@ -8,7 +8,7 @@ import com.squareup.stoic.plugin.StoicPlugin
  * Example embedded plugin that demonstrates how to create plugins within your app.
  *
  * This plugin can be invoked with:
- *   stoic com.squareup.stoic.demoapp.withsdk demo-embedded [args...]
+ *   stoic com.squareup.stoic.demoapp.withsdk demo-embedded <args...>
  */
 class DemoEmbeddedPlugin : StoicPlugin {
     override fun run(args: List<String>): Int {

@@ -29,6 +29,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.vanniktech.maven.publish.base) apply false
+    alias(libs.plugins.spotless)
 }
 
 val prebuiltDir = rootProject.file("prebuilt")
@@ -368,5 +369,19 @@ val buildDistribution by tasks.registering {
         println("----- Stoic build completed -----")
         println()
         println()
+    }
+}
+
+// Configure Spotless for code formatting with ktfmt
+spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**", "**/prebuilt/**", "**/buildSrc/**")
+        ktfmt().googleStyle()
+    }
+    kotlinGradle {
+        target("**/*.gradle.kts")
+        targetExclude("**/build/**")
+        ktfmt().googleStyle()
     }
 }

@@ -37,5 +37,18 @@ if [ -n "$WARNINGS" ]; then
   exit 1
 else
   echo "✅ No compile warnings found!"
-  exit 0
 fi
+
+# Note: Format checking with 'spotlessCheck' is configured but not yet enforced
+# Once the codebase is formatted (via 'spotlessApply'), uncomment the following:
+# echo ""
+# echo "Checking code formatting..."
+# ./gradlew spotlessCheck
+# if [ $? -ne 0 ]; then
+#   echo "❌ Code formatting violations found!"
+#   echo "Run './gradlew spotlessApply' to fix them."
+#   exit 1
+# fi
+# echo "✅ Code formatting is correct!"
+
+exit 0
