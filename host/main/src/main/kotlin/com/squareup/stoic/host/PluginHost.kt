@@ -7,9 +7,9 @@ import com.squareup.stoic.common.LoadPlugin
 import com.squareup.stoic.common.MessageReader
 import com.squareup.stoic.common.MessageWriter
 import com.squareup.stoic.common.PluginFinished
+import com.squareup.stoic.common.STDERR
 import com.squareup.stoic.common.STDIN
 import com.squareup.stoic.common.STDOUT
-import com.squareup.stoic.common.STDERR
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.StartPlugin
 import com.squareup.stoic.common.Succeeded
@@ -34,7 +34,7 @@ class PluginHost(
   apkInfo: FileWithSha?,
   val pluginParsedArgs: PluginParsedArgs,
   inputStream: InputStream,
-  outputStream: OutputStream
+  outputStream: OutputStream,
 ) {
   val pluginApk = apkInfo?.file
   val pluginApkSha256Sum = apkInfo?.sha256sum
@@ -44,11 +44,12 @@ class PluginHost(
 
   fun handleVersionResult(verifyProtocolVersionRequestId: Int) {
     try {
-      val succeeded = reader.consumeNext().let {
-        check(it.isResponse && it.isComplete)
-        check(it.requestId == verifyProtocolVersionRequestId)
-        it.payload as Succeeded
-      }
+      val succeeded =
+        reader.consumeNext().let {
+          check(it.isResponse && it.isComplete)
+          check(it.requestId == verifyProtocolVersionRequestId)
+          it.payload as Succeeded
+        }
       logDebug { succeeded.message }
     } catch (e: EOFException) {
       // This means the server isn't up yet
@@ -64,11 +65,12 @@ class PluginHost(
   }
 
   fun handleStartPluginResult(startPluginRequestId: Int) {
-    val msg = reader.consumeNext().let {
-      check(it.isResponse && it.isComplete)
-      check(it.requestId == startPluginRequestId)
-      it.payload
-    }
+    val msg =
+      reader.consumeNext().let {
+        check(it.isResponse && it.isComplete)
+        check(it.requestId == startPluginRequestId)
+        it.payload
+      }
     when (msg) {
       is Succeeded -> return // nothing more to do
       is Failed -> {
@@ -87,37 +89,39 @@ class PluginHost(
         """
           Plugin not found: ${pluginParsedArgs.pluginModule}
           To list available plugins: stoic tool list
-        """.trimIndent()
+        """
+          .trimIndent()
       )
     }
 
-    val loadPluginRequestId = writer.writeRequest(
-        LoadPlugin(
-        pluginName = pluginName,
-        pluginSha = pluginApkSha256Sum!!,
-      ),
-      isComplete = false
-    )
-    writer.writeRequest(pluginApk.readBytes(), requestId = loadPluginRequestId)
-    val startPluginRequestId = writer.writeRequest(
-      StartPlugin(
-        pluginName = pluginName,
-        pluginSha = pluginApkSha256Sum,
-        pluginArgs = pluginParsedArgs.pluginArgs,
-        minLogLevel = minLogLevel.name,
-        env = pluginParsedArgs.pluginEnvVars
+    val loadPluginRequestId =
+      writer.writeRequest(
+        LoadPlugin(pluginName = pluginName, pluginSha = pluginApkSha256Sum!!),
+        isComplete = false,
       )
-    )
-    val loadPluginResult = reader.consumeNext().let {
-      check(it.isResponse && it.isComplete)
-      it.payload as Succeeded
-    }
+    writer.writeRequest(pluginApk.readBytes(), requestId = loadPluginRequestId)
+    val startPluginRequestId =
+      writer.writeRequest(
+        StartPlugin(
+          pluginName = pluginName,
+          pluginSha = pluginApkSha256Sum,
+          pluginArgs = pluginParsedArgs.pluginArgs,
+          minLogLevel = minLogLevel.name,
+          env = pluginParsedArgs.pluginEnvVars,
+        )
+      )
+    val loadPluginResult =
+      reader.consumeNext().let {
+        check(it.isResponse && it.isComplete)
+        it.payload as Succeeded
+      }
     logVerbose { loadPluginResult.toString() }
 
-    val startPluginResult = reader.consumeNext().let {
-      check(it.isResponse && it.isComplete)
-      it.payload as Succeeded
-    }
+    val startPluginResult =
+      reader.consumeNext().let {
+        check(it.isResponse && it.isComplete)
+        it.payload as Succeeded
+      }
     logVerbose { startPluginResult.toString() }
   }
 
@@ -126,19 +130,21 @@ class PluginHost(
 
     // Since we're the host, we will write to stdin (and read from stdout/stderr)
     writer.openStdinForWriting()
-    val verifyProtocolVersionRequestId = writer.writeRequest(
-      VerifyProtocolVersion(STOIC_PROTOCOL_VERSION, StoicProperties.STOIC_VERSION_NAME)
-    )
-
-    val startPluginRequestId = writer.writeRequest(
-      StartPlugin(
-        pluginName = pluginName,
-        pluginSha = pluginApkSha256Sum,
-        pluginArgs = pluginParsedArgs.pluginArgs,
-        minLogLevel = minLogLevel.name,
-        env = pluginParsedArgs.pluginEnvVars,
+    val verifyProtocolVersionRequestId =
+      writer.writeRequest(
+        VerifyProtocolVersion(STOIC_PROTOCOL_VERSION, StoicProperties.STOIC_VERSION_NAME)
       )
-    )
+
+    val startPluginRequestId =
+      writer.writeRequest(
+        StartPlugin(
+          pluginName = pluginName,
+          pluginSha = pluginApkSha256Sum,
+          pluginArgs = pluginParsedArgs.pluginArgs,
+          minLogLevel = minLogLevel.name,
+          env = pluginParsedArgs.pluginEnvVars,
+        )
+      )
 
     // To minimize roundtrips, we don't read the version result until after we've written RunPlugin
     handleVersionResult(verifyProtocolVersionRequestId)
@@ -166,7 +172,7 @@ class PluginHost(
       } catch (e: Throwable) {
         if (e is IOException) {
           // this is unconcerning - the connection is being torn down as we attempt to pump stdin
-          logVerbose { "exception while pumping stdin (unconcerning) ${e.stackTraceToString()}"}
+          logVerbose { "exception while pumping stdin (unconcerning) ${e.stackTraceToString()}" }
         } else {
           logError { e.stackTraceToString() }
           throw e
@@ -176,10 +182,11 @@ class PluginHost(
 
     while (true) {
       val requestId: Int
-      val payload = reader.consumeNext().let {
-        requestId = it.requestId
-        it.payload
-      }
+      val payload =
+        reader.consumeNext().let {
+          requestId = it.requestId
+          it.payload
+        }
       when (payload) {
         is ByteArray -> {
           when (requestId) {

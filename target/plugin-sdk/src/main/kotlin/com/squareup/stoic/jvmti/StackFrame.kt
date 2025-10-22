@@ -13,14 +13,15 @@ import com.squareup.stoic.threadlocals.jvmti
  * method-id, location) then everything will work fine. I'd say it's hacky to depend on that though!
  *
  * TODO: this needs to be rethought - the location currently doesn't necessarily match the height
- *   within the stack. The reason is that the location might correspond to a call
- *   (e.g. method-entry) without a corresponding stack frame. This can happen for example when a
- *   native method is invoked.
+ *   within the stack. The reason is that the location might correspond to a call (e.g.
+ *   method-entry) without a corresponding stack frame. This can happen for example when a native
+ *   method is invoked.
  */
 class StackFrame(val thread: Thread, val height: Int, val location: Location) {
-  val stackTrace get(): List<StackTraceElement> {
-    return thread.stackTrace.takeLast(height)
-  }
+  val stackTrace
+    get(): List<StackTraceElement> {
+      return thread.stackTrace.takeLast(height)
+    }
 
   override fun toString(): String {
     return "StackFrame(thread=$thread, location=$location)"
@@ -29,7 +30,10 @@ class StackFrame(val thread: Thread, val height: Int, val location: Location) {
   fun <T> get(variable: LocalVariable<T>): T {
     val thread = Thread.currentThread()
     when (variable.signature) {
-      "I", "Z", "B", "S" -> {
+      "I",
+      "Z",
+      "B",
+      "S" -> {
         val intRepr = VirtualMachine.nativeGetLocalInt(thread, height, variable.slot)
         return when (variable.signature) {
           "I" -> intRepr
@@ -37,7 +41,8 @@ class StackFrame(val thread: Thread, val height: Int, val location: Location) {
           "B" -> intRepr.toByte()
           "S" -> intRepr.toShort()
           else -> throw Throwable("Impossible")
-        } as T
+        }
+          as T
       }
       "J" -> return VirtualMachine.nativeGetLocalLong(thread, height, variable.slot) as T
       "F" -> return VirtualMachine.nativeGetLocalFloat(thread, height, variable.slot) as T
@@ -66,17 +71,20 @@ class StackFrame(val thread: Thread, val height: Int, val location: Location) {
    */
   fun onExit(callback: OnMethodExit) {
     var exitRequest: MethodExitRequest? = null
-    exitRequest = jvmti.methodExits { frame, value, wasPoppedByException ->
-      // In the case of wasPoppedByException=true we may not see a method exit for the current frame
-      // Or maybe we see the exit, but its after the frame has already been popped. This would seem
-      // to be in violation of
-      // https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html#MethodExit
-      // but its what I see on my Android 14 emulator. So we need to check for `<=` and not simply
-      // `==`.
-      if (frame.height <= this.height) {
-        exitRequest!!.close()
-        callback(frame, value, wasPoppedByException)
+    exitRequest =
+      jvmti.methodExits { frame, value, wasPoppedByException ->
+        // In the case of wasPoppedByException=true we may not see a method exit for the current
+        // frame
+        // Or maybe we see the exit, but its after the frame has already been popped. This would
+        // seem
+        // to be in violation of
+        // https://docs.oracle.com/javase/8/docs/platform/jvmti/jvmti.html#MethodExit
+        // but its what I see on my Android 14 emulator. So we need to check for `<=` and not simply
+        // `==`.
+        if (frame.height <= this.height) {
+          exitRequest!!.close()
+          callback(frame, value, wasPoppedByException)
+        }
       }
-    }
   }
 }

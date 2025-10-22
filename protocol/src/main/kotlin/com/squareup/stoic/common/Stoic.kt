@@ -64,17 +64,22 @@ inline fun <T> withStatus(msg: String, block: () -> T): T {
 }
 
 fun logVerbose(msg: () -> String) = log(LogLevel.VERBOSE, msg)
+
 fun logDebug(msg: () -> String) = log(LogLevel.DEBUG, msg)
+
 fun logInfo(msg: () -> String) = log(LogLevel.INFO, msg)
+
 fun logWarn(msg: () -> String) = log(LogLevel.WARN, msg)
+
 fun logError(msg: () -> String) = log(LogLevel.ERROR, msg)
 
 inline fun <T> logBlock(level: LogLevel, msg: () -> String, block: () -> T): T {
-  val msgValue = if (level >= minLogLevel) {
-    msg()
-  } else {
-    ""
-  }
+  val msgValue =
+    if (level >= minLogLevel) {
+      msg()
+    } else {
+      ""
+    }
 
   log(level) { "Starting $msgValue..." }
   return runCatching { block() }
@@ -87,22 +92,24 @@ inline fun <T> logBlock(level: LogLevel, msg: () -> String, block: () -> T): T {
 }
 
 // Utility for debug output
-fun Any?.toKotlinRepr(): String = when (this) {
+fun Any?.toKotlinRepr(): String =
+  when (this) {
     null -> "null"
     is CharSequence -> {
-        val unquoted = this.toString()
-            .replace("\\", "\\\\")
-            .replace("\n", "\\n")
-            .replace("\t", "\\t")
-            .replace("\b", "\\b")
-            .replace("\r", "\\r")
-            .replace("\"", "\\\"")
-            .replace("\$", "\\\$")
-        "\"" + unquoted + "\""
+      val unquoted =
+        this.toString()
+          .replace("\\", "\\\\")
+          .replace("\n", "\\n")
+          .replace("\t", "\\t")
+          .replace("\b", "\\b")
+          .replace("\r", "\\r")
+          .replace("\"", "\\\"")
+          .replace("\$", "\\\$")
+      "\"" + unquoted + "\""
     }
     is List<*> -> this.toKotlinListRepr()
     else -> this.toString()
-}
+  }
 
 fun List<*>.toKotlinListRepr(): String {
   val reprElements = this.joinToString(separator = ", ") { it.toKotlinRepr() }

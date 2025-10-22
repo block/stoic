@@ -1,7 +1,8 @@
 package com.squareup.stoic.jvmti
 
 /**
- * Analogous to https://docs.oracle.com/javase/8/docs/jdk/api/jpda/jdi/com/sun/jdi/request/EventRequestManager.html
+ * Analogous to
+ * https://docs.oracle.com/javase/8/docs/jdk/api/jpda/jdi/com/sun/jdi/request/EventRequestManager.html
  */
 class EventRequestManager {
   // These are guarded by the `this` lock. We copy on each traversal inside the lock, and then call
@@ -14,7 +15,8 @@ class EventRequestManager {
   // TODO: there is too much boilerplate for each request type -
   //   find a way to share code amongst the create*/delete* implementations
 
-  private val breakpointRequests = mutableMapOf<Pair<JMethodId, JLocation>, MutableList<BreakpointRequest>>()
+  private val breakpointRequests =
+    mutableMapOf<Pair<JMethodId, JLocation>, MutableList<BreakpointRequest>>()
   private val methodEntryRequests = mutableMapOf<Thread, MutableList<MethodEntryRequest>>()
   private val methodExitRequests = mutableMapOf<Thread, MutableList<MethodExitRequest>>()
 

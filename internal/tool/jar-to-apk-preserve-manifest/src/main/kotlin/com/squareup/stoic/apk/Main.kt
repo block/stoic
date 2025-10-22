@@ -1,4 +1,5 @@
 package com.squareup.stoic.apk
+
 import com.squareup.stoic.bridge.StoicProperties
 import java.io.File
 import java.nio.file.Files
@@ -19,7 +20,7 @@ fun jarToApkPreserveManifest(jarFile: File, apkFile: File) {
   jarToApkPreserveManifest(
     jarFile,
     apkFile,
-    tempDir = Files.createTempDirectory("jar-to-apk-preserve-manifest").toFile()
+    tempDir = Files.createTempDirectory("jar-to-apk-preserve-manifest").toFile(),
   )
 }
 
@@ -33,11 +34,17 @@ fun jarToApkPreserveManifest(jarFile: File, apkFile: File, tempDir: File) {
 
   check(
     ProcessBuilder(
-      d8Path.absolutePath,
-      "--min-api", StoicProperties.ANDROID_MIN_SDK.toString(),
-      "--output", dexOutDir.absolutePath,
-      jarFile.absolutePath
-    ).redirectError(ProcessBuilder.Redirect.INHERIT).start().waitFor() == 0)
+        d8Path.absolutePath,
+        "--min-api",
+        StoicProperties.ANDROID_MIN_SDK.toString(),
+        "--output",
+        dexOutDir.absolutePath,
+        jarFile.absolutePath,
+      )
+      .redirectError(ProcessBuilder.Redirect.INHERIT)
+      .start()
+      .waitFor() == 0
+  )
 
   ZipOutputStream(apkFile.outputStream().buffered()).use { zipOut ->
     dexOutDir.listFiles()?.forEach { file ->

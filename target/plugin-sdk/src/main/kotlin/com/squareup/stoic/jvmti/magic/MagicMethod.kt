@@ -18,7 +18,8 @@ class MagicMethod(private val obj: Any?, val method: JvmtiMethod) {
     } catch (e: InvocationTargetException) {
       throw e.targetException
     } catch (e: ReflectiveOperationException) {
-      // TODO: if sig wasn't specified we might incorrectly resolve against a method in the base class
+      // TODO: if sig wasn't specified we might incorrectly resolve against a method in the base
+      // class
       // when a method in the superclass was intended - it'd be nice to check for that
       // TODO: also catch if there is another sig that would have worked
 
@@ -27,4 +28,3 @@ class MagicMethod(private val obj: Any?, val method: JvmtiMethod) {
     }
   }
 }
-

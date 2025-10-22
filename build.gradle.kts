@@ -1,12 +1,10 @@
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import java.io.ByteArrayOutputStream
 import java.net.URI
-import java.util.Properties
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+import org.gradle.api.publish.maven.MavenPublication
 
 buildscript {
   repositories {
@@ -14,22 +12,20 @@ buildscript {
     mavenCentral()
   }
 
-  dependencies {
-    classpath(libs.vanniktech.maven.publish.plugin)
-  }
+  dependencies { classpath(libs.vanniktech.maven.publish.plugin) }
 }
 
 plugins {
-    // Plugins need to be declared here to avoid warnings like:
-    //   The Kotlin Gradle plugin was loaded multiple times in different
-    //   subprojects, which is not supported and may break the build.
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.android.library) apply false
-    alias(libs.plugins.kotlin.android) apply false
-    alias(libs.plugins.kotlin.jvm) apply false
-    alias(libs.plugins.kotlin.serialization) apply false
-    alias(libs.plugins.vanniktech.maven.publish.base) apply false
-    alias(libs.plugins.spotless)
+  // Plugins need to be declared here to avoid warnings like:
+  //   The Kotlin Gradle plugin was loaded multiple times in different
+  //   subprojects, which is not supported and may break the build.
+  alias(libs.plugins.android.application) apply false
+  alias(libs.plugins.android.library) apply false
+  alias(libs.plugins.kotlin.android) apply false
+  alias(libs.plugins.kotlin.jvm) apply false
+  alias(libs.plugins.kotlin.serialization) apply false
+  alias(libs.plugins.vanniktech.maven.publish.base) apply false
+  alias(libs.plugins.spotless)
 }
 
 val prebuiltDir = rootProject.file("prebuilt")
@@ -50,7 +46,8 @@ allprojects {
     the<JavaPluginExtension>().toolchain.languageVersion.set(JavaLanguageVersion.of(17))
   }
   plugins.withId("org.jetbrains.kotlin.jvm") {
-    org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class.java
+    org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension::class
+      .java
       .cast(extensions.getByName("kotlin"))
       .jvmToolchain(17)
   }
@@ -100,9 +97,7 @@ allprojects {
       // Configure based on project type
       if (!plugins.hasPlugin("com.android.library")) {
         // Kotlin JVM projects
-        configure(
-          KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true)
-        )
+        configure(KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = true))
       } else {
         // Android library projects
         configure(
@@ -147,24 +142,24 @@ allprojects {
     }
     tasks.register("printPublishingInfo") {
       doLast {
-        val publishing = project.extensions.findByType(
-          org.gradle.api.publish.PublishingExtension::class.java
-        ) ?: run {
-          println("No publishing extension for ${project.path}")
-          return@doLast
-        }
+        val publishing =
+          project.extensions.findByType(org.gradle.api.publish.PublishingExtension::class.java)
+            ?: run {
+              println("No publishing extension for ${project.path}")
+              return@doLast
+            }
 
         // Print publication coordinates
         publishing.publications.withType<MavenPublication>().forEach { pub ->
-            println("Publication: ${pub.name}")
-            println("  groupId:    ${pub.groupId}")
-            println("  artifactId: ${pub.artifactId}")
-            println("  version:    ${pub.version}")
+          println("Publication: ${pub.name}")
+          println("  groupId:    ${pub.groupId}")
+          println("  artifactId: ${pub.artifactId}")
+          println("  version:    ${pub.version}")
         }
 
         // Print repository names and URLs
         publishing.repositories.withType(MavenArtifactRepository::class.java).forEach { repo ->
-            println("Repository: ${repo.name} -> ${repo.url}")
+          println("Repository: ${repo.name} -> ${repo.url}")
         }
       }
     }
@@ -191,197 +186,191 @@ subprojects {
   }
 }
 
-
 subprojects {
-    extra["stoic.android_min_sdk"] = androidMinSdk
-    extra["stoic.android_compile_sdk"] = androidCompileSdk
-    extra["stoic.android_target_sdk"] = androidTargetSdk
-    extra["stoic.android_build_tools_version"] = androidBuildToolsVersion
-    extra["stoic.version_name"] = versionName
-    extra["stoic.version_code"] = versionCodeFromVersionName(versionName)
+  extra["stoic.android_min_sdk"] = androidMinSdk
+  extra["stoic.android_compile_sdk"] = androidCompileSdk
+  extra["stoic.android_target_sdk"] = androidTargetSdk
+  extra["stoic.android_build_tools_version"] = androidBuildToolsVersion
+  extra["stoic.version_name"] = versionName
+  extra["stoic.version_code"] = versionCodeFromVersionName(versionName)
 
-    plugins.withId("java") {
-        val jarTask = tasks.named<Jar>("jar")
+  plugins.withId("java") {
+    val jarTask = tasks.named<Jar>("jar")
 
-        // Builds .apk, preserving the manifest
-        tasks.register<JavaExec>("apk") {
-            dependsOn(jarTask)
+    // Builds .apk, preserving the manifest
+    tasks.register<JavaExec>("apk") {
+      dependsOn(jarTask)
 
-            val jarFile = jarTask.flatMap { it.archiveFile }.map { it.asFile }
-            val apkFile = jarFile.map { File(it.path.replace(".jar", ".apk")) }
+      val jarFile = jarTask.flatMap { it.archiveFile }.map { it.asFile }
+      val apkFile = jarFile.map { File(it.path.replace(".jar", ".apk")) }
 
-            val jarToApkPreserveManifest = project(":internal:tool:jar-to-apk-preserve-manifest")
-            // TODO: This triggers a configuration resolution warning in Gradle - needs refactoring to use proper dependency management
-            classpath = jarToApkPreserveManifest
-              .extensions
-              .getByType<JavaPluginExtension>()
-              .sourceSets
-              .getByName("main")
-              .runtimeClasspath
-            mainClass.set(jarToApkPreserveManifest.the<JavaApplication>().mainClass)
-            inputs.file(jarFile)
-            outputs.file(apkFile)
+      val jarToApkPreserveManifest = project(":internal:tool:jar-to-apk-preserve-manifest")
+      // TODO: This triggers a configuration resolution warning in Gradle - needs refactoring to use
+      // proper dependency management
+      classpath =
+        jarToApkPreserveManifest.extensions
+          .getByType<JavaPluginExtension>()
+          .sourceSets
+          .getByName("main")
+          .runtimeClasspath
+      mainClass.set(jarToApkPreserveManifest.the<JavaApplication>().mainClass)
+      inputs.file(jarFile)
+      outputs.file(apkFile)
 
-            // Set args lazily, during execution
-            doFirst {
-                args = listOf(
-                  jarFile.get().absolutePath,
-                  apkFile.get().absolutePath
-                )
-            }
-        }
+      // Set args lazily, during execution
+      doFirst { args = listOf(jarFile.get().absolutePath, apkFile.get().absolutePath) }
     }
+  }
 
-    val projectPathSlug = project.path.removePrefix(":").replace(":", "-")
-    tasks.withType<Jar>().configureEach {
-        manifest {
-            attributes(
-              "Implementation-Title" to "stoic-$projectPathSlug",
-              "Implementation-Version" to versionName
-            )
-        }
+  val projectPathSlug = project.path.removePrefix(":").replace(":", "-")
+  tasks.withType<Jar>().configureEach {
+    manifest {
+      attributes(
+        "Implementation-Title" to "stoic-$projectPathSlug",
+        "Implementation-Version" to versionName,
+      )
     }
+  }
 }
 
 // Distribution task - assembles all artifacts into build/distributions/
-val buildDistribution by tasks.registering {
+val buildDistribution by
+  tasks.registering {
     description = "Builds and assembles all Stoic artifacts into build/distributions/"
     group = "build"
 
     // Depend on all the subproject builds
     dependsOn(
-        ":host:main:assemble",
-        ":host:main:nativeCompile",
-        ":target:plugin-sdk:assemble",
-        ":target:app-sdk:assembleRelease",
-        ":target:jvmti-attach:assembleDebug",
-        ":demo-plugin:helloworld:apk",
-        ":demo-plugin:appexitinfo:apk",
-        ":demo-plugin:breakpoint:apk",
-        ":demo-plugin:crasher:apk",
-        ":demo-app:without-sdk:assembleDebug",
-        ":demo-app:with-sdk:assembleRelease",
-        ":native:buildNative"
+      ":host:main:assemble",
+      ":host:main:nativeCompile",
+      ":target:plugin-sdk:assemble",
+      ":target:app-sdk:assembleRelease",
+      ":target:jvmti-attach:assembleDebug",
+      ":demo-plugin:helloworld:apk",
+      ":demo-plugin:appexitinfo:apk",
+      ":demo-plugin:breakpoint:apk",
+      ":demo-plugin:crasher:apk",
+      ":demo-app:without-sdk:assembleDebug",
+      ":demo-app:with-sdk:assembleRelease",
+      ":native:buildNative",
     )
 
     val releaseDir = layout.buildDirectory.dir("distributions").get().asFile
     val syncDir = File(releaseDir, "sync")
 
     doLast {
-        // Create directory structure
-        File(releaseDir, "jar").mkdirs()
-        File(releaseDir, "sdk").mkdirs()
-        File(releaseDir, "bin/darwin-arm64").mkdirs()
-        File(syncDir, "plugins").mkdirs()
-        File(syncDir, "stoic").mkdirs()
-        File(syncDir, "bin").mkdirs()
-        File(syncDir, "apk").mkdirs()
+      // Create directory structure
+      File(releaseDir, "jar").mkdirs()
+      File(releaseDir, "sdk").mkdirs()
+      File(releaseDir, "bin/darwin-arm64").mkdirs()
+      File(syncDir, "plugins").mkdirs()
+      File(syncDir, "stoic").mkdirs()
+      File(syncDir, "bin").mkdirs()
+      File(syncDir, "apk").mkdirs()
 
-        // Copy prebuilt files
-        copy {
-            from("prebuilt")
-            into(releaseDir)
-        }
+      // Copy prebuilt files
+      copy {
+        from("prebuilt")
+        into(releaseDir)
+      }
 
-        // Copy host artifacts
-        copy {
-            from("host/main/build/libs/main-$versionName.jar")
-            into("$releaseDir/jar")
-            rename { "stoic-host-main.jar" }
-        }
-        copy {
-            from("host/main/build/native/nativeCompile/stoic")
-            into("$releaseDir/bin/darwin-arm64")
-        }
+      // Copy host artifacts
+      copy {
+        from("host/main/build/libs/main-$versionName.jar")
+        into("$releaseDir/jar")
+        rename { "stoic-host-main.jar" }
+      }
+      copy {
+        from("host/main/build/native/nativeCompile/stoic")
+        into("$releaseDir/bin/darwin-arm64")
+      }
 
-        // Copy protocol JAR
-        copy {
-            from("protocol/build/libs/protocol-$versionName.jar")
-            into("$releaseDir/sdk")
-            rename { "stoic-protocol.jar" }
-        }
+      // Copy protocol JAR
+      copy {
+        from("protocol/build/libs/protocol-$versionName.jar")
+        into("$releaseDir/sdk")
+        rename { "stoic-protocol.jar" }
+      }
 
-        // Copy plugin SDK
-        copy {
-            from("target/plugin-sdk/build/libs/plugin-sdk-$versionName.jar")
-            into("$releaseDir/sdk")
-            rename { "stoic-plugin-sdk.jar" }
-        }
+      // Copy plugin SDK
+      copy {
+        from("target/plugin-sdk/build/libs/plugin-sdk-$versionName.jar")
+        into("$releaseDir/sdk")
+        rename { "stoic-plugin-sdk.jar" }
+      }
 
-        // Copy app SDK (Android AAR library for apps to include)
-        copy {
-            from("target/app-sdk/build/outputs/aar/app-sdk-release.aar")
-            into("$releaseDir/sdk")
-            rename { "stoic-app-sdk.aar" }
-        }
+      // Copy app SDK (Android AAR library for apps to include)
+      copy {
+        from("target/app-sdk/build/outputs/aar/app-sdk-release.aar")
+        into("$releaseDir/sdk")
+        rename { "stoic-app-sdk.aar" }
+      }
 
-        // Copy jvmti-attach APK (debug build for easier debugging)
-        copy {
-            from("target/jvmti-attach/build/outputs/apk/debug/jvmti-attach-debug.apk")
-            into("$syncDir/stoic")
-            rename { "stoic-jvmti-attach.apk" }
-        }
+      // Copy jvmti-attach APK (debug build for easier debugging)
+      copy {
+        from("target/jvmti-attach/build/outputs/apk/debug/jvmti-attach-debug.apk")
+        into("$syncDir/stoic")
+        rename { "stoic-jvmti-attach.apk" }
+      }
 
-        // Copy demo apps
-        copy {
-            from("demo-app/without-sdk/build/outputs/apk/debug/without-sdk-debug.apk")
-            into("$syncDir/apk")
-            rename { "stoic-demo-app-without-sdk-debug.apk" }
-        }
-        copy {
-            from("demo-app/with-sdk/build/outputs/apk/release/with-sdk-release.apk")
-            into("$syncDir/apk")
-            rename { "stoic-demo-app-with-sdk-release.apk" }
-        }
+      // Copy demo apps
+      copy {
+        from("demo-app/without-sdk/build/outputs/apk/debug/without-sdk-debug.apk")
+        into("$syncDir/apk")
+        rename { "stoic-demo-app-without-sdk-debug.apk" }
+      }
+      copy {
+        from("demo-app/with-sdk/build/outputs/apk/release/with-sdk-release.apk")
+        into("$syncDir/apk")
+        rename { "stoic-demo-app-with-sdk-release.apk" }
+      }
 
-        // Copy demo plugins
-        val demoPluginsDir = File(releaseDir, "demo-plugins")
-        demoPluginsDir.mkdirs()
-        copy {
-            from("demo-plugin/appexitinfo/build/libs/appexitinfo-$versionName.apk")
-            into(demoPluginsDir)
-            rename { "appexitinfo.apk" }
-        }
-        copy {
-            from("demo-plugin/breakpoint/build/libs/breakpoint-$versionName.apk")
-            into(demoPluginsDir)
-            rename { "breakpoint.apk" }
-        }
-        copy {
-            from("demo-plugin/crasher/build/libs/crasher-$versionName.apk")
-            into(demoPluginsDir)
-            rename { "crasher.apk" }
-        }
-        copy {
-            from("demo-plugin/helloworld/build/libs/helloworld-$versionName.apk")
-            into(demoPluginsDir)
-            rename { "helloworld.apk" }
-        }
+      // Copy demo plugins
+      val demoPluginsDir = File(releaseDir, "demo-plugins")
+      demoPluginsDir.mkdirs()
+      copy {
+        from("demo-plugin/appexitinfo/build/libs/appexitinfo-$versionName.apk")
+        into(demoPluginsDir)
+        rename { "appexitinfo.apk" }
+      }
+      copy {
+        from("demo-plugin/breakpoint/build/libs/breakpoint-$versionName.apk")
+        into(demoPluginsDir)
+        rename { "breakpoint.apk" }
+      }
+      copy {
+        from("demo-plugin/crasher/build/libs/crasher-$versionName.apk")
+        into(demoPluginsDir)
+        rename { "crasher.apk" }
+      }
+      copy {
+        from("demo-plugin/helloworld/build/libs/helloworld-$versionName.apk")
+        into(demoPluginsDir)
+        rename { "helloworld.apk" }
+      }
 
-        // Set permissions on sync directory
-        // TODO: exec() is deprecated - refactor to use ExecOperations with a typed task
-        exec {
-            commandLine("chmod", "-R", "a+rw", syncDir.absolutePath)
-        }
+      // Set permissions on sync directory
+      // TODO: exec() is deprecated - refactor to use ExecOperations with a typed task
+      exec { commandLine("chmod", "-R", "a+rw", syncDir.absolutePath) }
 
-        println()
-        println()
-        println("----- Stoic build completed -----")
-        println()
-        println()
+      println()
+      println()
+      println("----- Stoic build completed -----")
+      println()
+      println()
     }
-}
+  }
 
 // Configure Spotless for code formatting with ktfmt
 spotless {
-    kotlin {
-        target("**/*.kt")
-        targetExclude("**/build/**", "**/prebuilt/**", "**/buildSrc/**")
-        ktfmt().googleStyle()
-    }
-    kotlinGradle {
-        target("**/*.gradle.kts")
-        targetExclude("**/build/**")
-        ktfmt().googleStyle()
-    }
+  kotlin {
+    target("**/*.kt")
+    targetExclude("**/build/**", "**/prebuilt/**", "**/buildSrc/**")
+    ktfmt().googleStyle()
+  }
+  kotlinGradle {
+    target("**/*.gradle.kts")
+    targetExclude("**/build/**")
+    ktfmt().googleStyle()
+  }
 }

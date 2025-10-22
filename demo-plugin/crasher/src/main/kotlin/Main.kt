@@ -5,10 +5,7 @@ import com.squareup.stoic.helpers.*
 import com.squareup.stoic.threadlocals.stoic
 import java.util.concurrent.CountDownLatch
 
-
-/**
- * A Stoic plugin to inject errors into a running process
- */
+/** A Stoic plugin to inject errors into a running process */
 @Suppress("unused")
 fun main(args: Array<String>) {
   if (args.size != 1) {
@@ -38,9 +35,8 @@ fun injectMainThreadError() {
 }
 
 /**
- * This creates a HandlerThread named "injected-error".
- * Post a message to the HandlerThread that will throw an exception.
- * This will cause the thread to crash.
+ * This creates a HandlerThread named "injected-error". Post a message to the HandlerThread that
+ * will throw an exception. This will cause the thread to crash.
  */
 fun injectBackgroundThreadError() {
   HandlerThread("injected-error").also {
@@ -86,9 +82,7 @@ fun injectAnr() {
       synchronized(lock1) {
         latch2.countDown()
         latch1.await()
-        synchronized(lock2) {
-          throw Exception("This shouldn't be possible")
-        }
+        synchronized(lock2) { throw Exception("This shouldn't be possible") }
       }
     }
   }
@@ -96,9 +90,7 @@ fun injectAnr() {
     synchronized(lock2) {
       latch1.countDown()
       latch2.await()
-      synchronized(lock1) {
-        throw Exception("This shouldn't be possible")
-      }
+      synchronized(lock1) { throw Exception("This shouldn't be possible") }
     }
   }
 

@@ -19,32 +19,30 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.nullableFlag
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.pair
 import com.github.ajalt.clikt.parameters.options.transformValues
 import com.github.ajalt.clikt.parameters.options.versionOption
 import com.github.ajalt.clikt.parameters.types.enum
 import com.squareup.stoic.bridge.StoicProperties
-import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
-import com.squareup.stoic.common.serverSocketName
 import com.squareup.stoic.common.LogLevel
-import com.squareup.stoic.host.AttachVia
+import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.logBlock
 import com.squareup.stoic.common.logDebug
 import com.squareup.stoic.common.logError
 import com.squareup.stoic.common.logInfo
 import com.squareup.stoic.common.logWarn
 import com.squareup.stoic.common.minLogLevel
+import com.squareup.stoic.common.serverSocketName
 import com.squareup.stoic.common.showStatus
 import com.squareup.stoic.common.withStatus
+import com.squareup.stoic.host.AttachVia
 import com.squareup.stoic.host.FailedExecException
 import com.squareup.stoic.host.FileWithSha
 import com.squareup.stoic.host.MismatchedVersionException
 import com.squareup.stoic.host.PithyException
 import com.squareup.stoic.host.PluginHost
 import com.squareup.stoic.host.PluginParsedArgs
-import com.squareup.stoic.host.runCommand
-import com.squareup.stoic.host.stoicDeviceSyncDir
 import com.squareup.stoic.host.stdout
+import com.squareup.stoic.host.stoicDeviceSyncDir
 import com.squareup.stoic.host.waitFor
 import java.io.EOFException
 import java.io.File
@@ -67,23 +65,22 @@ lateinit var stoicDemoPluginsDir: String
 var androidSerial: String? = null
 
 val adbSerial: String by lazy {
-  androidSerial ?: run {
-    val serialFromEnv = System.getenv("ANDROID_SERIAL")
-    serialFromEnv
-      ?: try {
-        ProcessBuilder("adb", "get-serialno").stdout(0)
-      } catch (e: FailedExecException) {
-        e.errorOutput?.let {
-          // This is probably just a message saying either
-          //   "error: more than one device/emulator"
-          // or
-          //   "adb: no devices/emulators found"
-          throw PithyException(it)
-        } ?: run {
-          throw e
+  androidSerial
+    ?: run {
+      val serialFromEnv = System.getenv("ANDROID_SERIAL")
+      serialFromEnv
+        ?: try {
+          ProcessBuilder("adb", "get-serialno").stdout(0)
+        } catch (e: FailedExecException) {
+          e.errorOutput?.let {
+            // This is probably just a message saying either
+            //   "error: more than one device/emulator"
+            // or
+            //   "adb: no devices/emulators found"
+            throw PithyException(it)
+          } ?: run { throw e }
         }
-      }
-  }
+    }
 }
 
 data class PluginSpec(
@@ -92,25 +89,22 @@ data class PluginSpec(
   val pluginArgs: List<String> = emptyList(),
   val pluginEnvVars: Map<String, String> = emptyMap(),
   val attachVia: AttachVia = AttachVia.JVMTI,
-  val restartApp: Boolean = false
+  val restartApp: Boolean = false,
 )
 
-class Entrypoint : CliktCommand(
-  name = "stoic",
-) {
+class Entrypoint : CliktCommand(name = "stoic") {
   companion object {
     const val DEFAULT_DEBUGGABLE_PACKAGE = "com.squareup.stoic.demoapp.withoutsdk"
     const val DEFAULT_NON_DEBUGGABLE_PACKAGE = "com.squareup.stoic.demoapp.withsdk"
   }
+
   init {
     context { allowInterspersedArgs = false }
-    versionOption(
-      version = StoicProperties.STOIC_VERSION_NAME,
-      names = setOf("-v", "--version")
-    )
+    versionOption(version = StoicProperties.STOIC_VERSION_NAME, names = setOf("-v", "--version"))
   }
 
   override val printHelpOnEmptyArgs = true
+
   override fun help(context: Context): String {
     return """
       Stoic communicates with processes running on Android devices.
@@ -124,7 +118,8 @@ class Entrypoint : CliktCommand(
 
       Special functionality is available via `stoic --tool <tool-name> <tool-args>` - for details,
       see `stoic --list --tool`
-    """.trimIndent()
+    """
+      .trimIndent()
   }
 
   // Track which options were explicitly set
@@ -156,101 +151,84 @@ class Entrypoint : CliktCommand(
     }
   }
 
-  val verbose by option(
-    "--verbose",
-    help = "enable verbose logging"
-  ).trackableFlag()
-  val debug by option(
-    "--debug",
-    help = "enable debug logging"
-  ).trackableFlag()
-  val info by option(
-    "--info",
-    help = "enable info logging"
-  ).trackableFlag()
-  val noStatus by option(
-    "--no-status",
-    help = "disable status messages"
-  ).trackableFlag()
+  val verbose by option("--verbose", help = "enable verbose logging").trackableFlag()
+  val debug by option("--debug", help = "enable debug logging").trackableFlag()
+  val info by option("--info", help = "enable info logging").trackableFlag()
+  val noStatus by option("--no-status", help = "disable status messages").trackableFlag()
 
-  val restartApp by option(
-    "--restart",
-    "--restart-app",
-    "-r",
-    help = "if it's already running, force restart the specified package"
-  ).trackableFlag()
-  val noStartIfNeeded by option(
-    "--no-start-if-needed",
-    help = """
+  val restartApp by
+    option(
+        "--restart",
+        "--restart-app",
+        "-r",
+        help = "if it's already running, force restart the specified package",
+      )
+      .trackableFlag()
+  val noStartIfNeeded by
+    option(
+        "--no-start-if-needed",
+        help =
+          """
       by default, stoic will start the specified package if it's not already running - this option
       disables that behavior
-    """.trimIndent()
-  ).trackableFlag()
+    """
+            .trimIndent(),
+      )
+      .trackableFlag()
 
-  val androidSerialArg by option(
-    "--android-serial",
-    "--serial",
-    "-s",
-    help = "Use device with given serial (overrides \$ANDROID_SERIAL)"
-  ).trackableOption()
+  val androidSerialArg by
+    option(
+        "--android-serial",
+        "--serial",
+        "-s",
+        help = "Use device with given serial (overrides \$ANDROID_SERIAL)",
+      )
+      .trackableOption()
 
-  val rawPkg by option(
-    "--package",
-    "--pkg",
-    "-n",
-    help = "Specify the package of the process to connect to"
-  ).trackableOption()
+  val rawPkg by
+    option("--package", "--pkg", "-n", help = "Specify the package of the process to connect to")
+      .trackableOption()
 
   val pkg by lazy {
-    rawPkg ?: when (attachVia) {
-      AttachVia.JVMTI -> DEFAULT_DEBUGGABLE_PACKAGE
-      AttachVia.JVMTI_ROOT -> DEFAULT_NON_DEBUGGABLE_PACKAGE
-      AttachVia.SDK -> DEFAULT_NON_DEBUGGABLE_PACKAGE
-    }
+    rawPkg
+      ?: when (attachVia) {
+        AttachVia.JVMTI -> DEFAULT_DEBUGGABLE_PACKAGE
+        AttachVia.JVMTI_ROOT -> DEFAULT_NON_DEBUGGABLE_PACKAGE
+        AttachVia.SDK -> DEFAULT_NON_DEBUGGABLE_PACKAGE
+      }
   }
 
-  val attachVia by option(
-    "--attach-via",
-    "-a",
-    help = "Specify the method to attach to the target process"
-  ).trackableOption().enum<AttachVia>().default(AttachVia.JVMTI)
+  val attachVia by
+    option("--attach-via", "-a", help = "Specify the method to attach to the target process")
+      .trackableOption()
+      .enum<AttachVia>()
+      .default(AttachVia.JVMTI)
 
   // TODO: support --pid/-p to allow attaching by pid
 
-  val env by option(
-    "--env",
-    help = "Environment key=value pairs - plugins access these via stoic.getenv(...)"
-  ).trackableOption().convert { value ->
-    val parts = value.split('=', limit = 2)
-    if (parts.size != 2) {
-      fail("--env must be in format KEY=VALUE")
-    }
-    parts[0] to parts[1]
-  }.multiple()
+  val env by
+    option(
+        "--env",
+        help = "Environment key=value pairs - plugins access these via stoic.getenv(...)",
+      )
+      .trackableOption()
+      .convert { value ->
+        val parts = value.split('=', limit = 2)
+        if (parts.size != 2) {
+          fail("--env must be in format KEY=VALUE")
+        }
+        parts[0] to parts[1]
+      }
+      .multiple()
 
-  val isDemo by option(
-    "--demo",
-    help = "limit plugin resolution to demo plugins"
-  ).trackableFlag()
-  val isEmbedded by option(
-    "--embedded",
-    help = "limit plugin resolution to embedded plugins"
-  ).trackableFlag()
-  val isUser by option(
-    "--user",
-    "--usr",
-    help = "limit plugin resolution to user plugins"
-  ).trackableFlag()
-  val isTool by option(
-    "--tool",
-    "-t",
-    help = "run a tool - see `stoic --tool --list` for details"
-  ).flag()
-  val isList by option(
-    "--list",
-    "-l",
-    help = "list plugins (pass --tool to list tools)"
-  ).flag()
+  val isDemo by option("--demo", help = "limit plugin resolution to demo plugins").trackableFlag()
+  val isEmbedded by
+    option("--embedded", help = "limit plugin resolution to embedded plugins").trackableFlag()
+  val isUser by
+    option("--user", "--usr", help = "limit plugin resolution to user plugins").trackableFlag()
+  val isTool by
+    option("--tool", "-t", help = "run a tool - see `stoic --tool --list` for details").flag()
+  val isList by option("--list", "-l", help = "list plugins (pass --tool to list tools)").flag()
 
   val subcommand by argument(name = "plugin").optional()
   val subcommandArgs by argument(name = "plugin-args").multiple()
@@ -262,7 +240,7 @@ class Entrypoint : CliktCommand(
       pluginArgs = pluginArgs ?: subcommandArgs,
       pluginEnvVars = env.toMap(),
       attachVia = attachVia,
-      restartApp = restartApp
+      restartApp = restartApp,
     )
   }
 
@@ -303,15 +281,16 @@ class Entrypoint : CliktCommand(
       throw CliktError("--verbose and --debug are mutually exclusive")
     }
 
-    minLogLevel = if (verbose) {
-      LogLevel.VERBOSE
-    } else if (debug) {
-      LogLevel.DEBUG
-    } else if (info) {
-      LogLevel.INFO
-    } else {
-      LogLevel.WARN
-    }
+    minLogLevel =
+      if (verbose) {
+        LogLevel.VERBOSE
+      } else if (debug) {
+        LogLevel.DEBUG
+      } else if (info) {
+        LogLevel.INFO
+      } else {
+        LogLevel.WARN
+      }
     showStatus = !noStatus
 
     logDebug { "isGraal=$isGraal" }
@@ -324,15 +303,22 @@ class Entrypoint : CliktCommand(
 }
 
 class ShellCommand(val entrypoint: Entrypoint) : CliktCommand(name = "stoic shell") {
-  init { context { allowInterspersedArgs = false } }
+  init {
+    context { allowInterspersedArgs = false }
+  }
+
   override val treatUnknownOptionsAsArgs = true
+
   override fun help(context: Context): String {
     return """
       Stoic used to provide a shell command, but its unrelated to Stoic's core functionality, so
       it has been removed.
-    """.trimIndent()
+    """
+      .trimIndent()
   }
+
   val shellArgs by argument().multiple()
+
   override fun run() {
     echoFormattedHelp()
     throw CliktError()
@@ -341,19 +327,21 @@ class ShellCommand(val entrypoint: Entrypoint) : CliktCommand(name = "stoic shel
 
 class RsyncCommand(val entrypoint: Entrypoint) : CoreCliktCommand(name = "rsync") {
   init {
-    context {
-      allowInterspersedArgs = false
-    }
+    context { allowInterspersedArgs = false }
   }
+
   override val treatUnknownOptionsAsArgs = true
+
   override fun help(context: Context): String {
     return """
       Stoic used to provide an rsync command, but its unrelated to Stoic's core functionality, so
       it has been removed.
-    """.trimIndent()
+    """
+      .trimIndent()
   }
 
   val rsyncArgs by argument().multiple()
+
   override fun run() {
     echoFormattedHelp()
     throw CliktError()
@@ -362,19 +350,21 @@ class RsyncCommand(val entrypoint: Entrypoint) : CoreCliktCommand(name = "rsync"
 
 class InitConfigCommand(val entrypoint: Entrypoint) : CliktCommand(name = "stoic init-config") {
   init {
-    context {
-      allowInterspersedArgs = false
-    }
+    context { allowInterspersedArgs = false }
   }
+
   override val treatUnknownOptionsAsArgs = true
+
   override fun help(context: Context): String {
     return """
       Stoic used to provide an init-config command, but it's not longer necessary, so it has been
       removed.
-    """.trimIndent()
+    """
+      .trimIndent()
   }
 
   val initConfigArgsArgs by argument().multiple()
+
   override fun run() {
     echoFormattedHelp()
     throw CliktError()
@@ -385,7 +375,8 @@ class PluginCommand(val entrypoint: Entrypoint) : CliktCommand(name = "stoic plu
   override fun help(context: Context): String {
     return """
       Create a new plugin
-    """.trimIndent()
+    """
+      .trimIndent()
   }
 
   val isNew by option("--new", "-n").flag()
@@ -415,32 +406,35 @@ class PluginCommand(val entrypoint: Entrypoint) : CliktCommand(name = "stoic plu
 
       val stoicEditor = System.getenv("STOIC_EDITOR")
       val editor = System.getenv("EDITOR")
-      val resolvedEditor = if (!stoicEditor.isNullOrBlank()) {
-        stoicEditor
-      } else if (!editor.isNullOrBlank()) {
-        editor
-      } else {
-        throw PithyException("""
+      val resolvedEditor =
+        if (!stoicEditor.isNullOrBlank()) {
+          stoicEditor
+        } else if (!editor.isNullOrBlank()) {
+          editor
+        } else {
+          throw PithyException(
+            """
           Editor not found. Please export STOIC_EDITOR or EDITOR.
           For Android Studio:
             export STOIC_EDITOR='open -a "Android Studio"'
           Or, you can open your editor to $usrPluginSrcDir manually.
-        """.trimIndent())
-      }
+        """
+              .trimIndent()
+          )
+        }
 
-      val editorParts = if (resolvedEditor.contains(" ")) {
-        ProcessBuilder("bash", "-c", "for x in $resolvedEditor; do printf '%s\\n' \"\$x\"; done")
-          .stdout()
-          .split('\n')
-      } else {
-        listOf(resolvedEditor)
-      }
+      val editorParts =
+        if (resolvedEditor.contains(" ")) {
+          ProcessBuilder("bash", "-c", "for x in $resolvedEditor; do printf '%s\\n' \"\$x\"; done")
+            .stdout()
+            .split('\n')
+        } else {
+          listOf(resolvedEditor)
+        }
 
       val srcMain = "$usrPluginSrcDir/src/main/kotlin/Main.kt"
       val srcGradle = "$usrPluginSrcDir/build.gradle.kts"
-      ProcessBuilder(editorParts + listOf(srcMain, srcGradle))
-        .inheritIO()
-        .waitFor(0)
+      ProcessBuilder(editorParts + listOf(srcMain, srcGradle)).inheritIO().waitFor(0)
     }
   }
 }
@@ -466,12 +460,10 @@ fun newPlugin(pluginName: String, ignoreExisting: Boolean = false): File {
   }
 
   // Copy the scratch template plugin
-  ProcessBuilder(
-    "cp",
-    "-iR",
-    pluginTemplateSrcDir.absolutePath,
-    usrPluginSrcDir.absolutePath
-  ).inheritIO().redirectInput(File("/dev/null")).waitFor(0)
+  ProcessBuilder("cp", "-iR", pluginTemplateSrcDir.absolutePath, usrPluginSrcDir.absolutePath)
+    .inheritIO()
+    .redirectInput(File("/dev/null"))
+    .waitFor(0)
 
   File(usrPluginSrcDir, ".stoic_template_version").writeText(StoicProperties.STOIC_VERSION_NAME)
 
@@ -487,29 +479,34 @@ fun syncSdk() {
     .waitFor(0)
 }
 
-
 fun main(rawArgs: Array<String>) {
   isGraal = System.getProperty("org.graalvm.nativeimage.imagecode") != null
-  stoicReleaseDir = if (isGraal) {
-    // This is how we find the release dir from the GraalVM-generated binary
-    // The graalvm-binary will be in bin/darwin-arm64/stoic, so we need to walk up three parents.
-    val pathToSelf = ProcessHandle.current().info().command().get()
-    Paths.get(pathToSelf).toRealPath().parent.parent.parent.toAbsolutePath().toString()
-  } else {
-    // This is how we find the release dir when normally (via a jar)
-    // The jar file will be in jar/stoic-host-main.jar, so we need to walk up two parents.
-    val uri = Entrypoint::class.java.protectionDomain.codeSource.location.toURI()
-    File(uri).toPath().parent.parent.toAbsolutePath().toString()
-  }
+  stoicReleaseDir =
+    if (isGraal) {
+      // This is how we find the release dir from the GraalVM-generated binary
+      // The graalvm-binary will be in bin/darwin-arm64/stoic, so we need to walk up three parents.
+      val pathToSelf = ProcessHandle.current().info().command().get()
+      Paths.get(pathToSelf).toRealPath().parent.parent.parent.toAbsolutePath().toString()
+    } else {
+      // This is how we find the release dir when normally (via a jar)
+      // The jar file will be in jar/stoic-host-main.jar, so we need to walk up two parents.
+      val uri = Entrypoint::class.java.protectionDomain.codeSource.location.toURI()
+      File(uri).toPath().parent.parent.toAbsolutePath().toString()
+    }
 
   minLogLevel = LogLevel.WARN
 
   stoicReleaseSyncDir = "$stoicReleaseDir/sync"
   stoicDemoPluginsDir = "$stoicReleaseDir/demo-plugins"
 
-  stoicHostUsrConfigDir = System.getenv("STOIC_CONFIG").let {
-    if (it.isNullOrBlank()) { "${System.getenv("HOME")}/.config/stoic" } else { it }
-  }
+  stoicHostUsrConfigDir =
+    System.getenv("STOIC_CONFIG").let {
+      if (it.isNullOrBlank()) {
+        "${System.getenv("HOME")}/.config/stoic"
+      } else {
+        it
+      }
+    }
   stoicHostUsrPluginSrcDir = "$stoicHostUsrConfigDir/plugin"
   stoicHostUsrSdkDir = "$stoicHostUsrConfigDir/sdk"
 
@@ -539,22 +536,19 @@ fun runList(entrypoint: Entrypoint): Int {
     throw UsageError("`stoic --list` doesn't take positional arguments")
   } else if (entrypoint.isTool) {
     // TODO: deduplicate this list with the one in runTool
-    listOf("plugin").forEach {
-      println(it)
-    }
+    listOf("plugin").forEach { println(it) }
   } else {
     // Show user and demo plugins
     val pluginList = gatherPluginList(entrypoint).toMutableList()
 
     // If package is specified, also get embedded plugins via __stoic-list
     if (entrypoint.rawPkg != null) {
-      val listSpec = entrypoint.toPluginSpec(
-        pluginModule = "__stoic-list",
-        pluginArgs = emptyList()
-      )
+      val listSpec =
+        entrypoint.toPluginSpec(pluginModule = "__stoic-list", pluginArgs = emptyList())
 
       // Capture output from __stoic-list - we need to temporarily redirect System.out
-      // TODO: Provide an API for running a plugin that allows overriding stdin/stdout/stderr directly
+      // TODO: Provide an API for running a plugin that allows overriding stdin/stdout/stderr
+      // directly
       val originalOut = System.out
       val capturedOutput = java.io.ByteArrayOutputStream()
       System.setOut(java.io.PrintStream(capturedOutput))
@@ -574,9 +568,7 @@ fun runList(entrypoint: Entrypoint): Int {
       }
     }
 
-    pluginList.forEach {
-      println(it)
-    }
+    pluginList.forEach { println(it) }
   }
 
   return 0
@@ -589,11 +581,12 @@ fun isInternalPluginName(name: String): Boolean {
 fun gatherPluginList(entrypoint: Entrypoint): List<String> {
   val pluginList = mutableListOf<String>()
 
-  val apkFilter = object : FileFilter {
-    override fun accept(file: File): Boolean {
-      return file.isFile && file.name.endsWith(".apk")
+  val apkFilter =
+    object : FileFilter {
+      override fun accept(file: File): Boolean {
+        return file.isFile && file.name.endsWith(".apk")
+      }
     }
-  }
 
   entrypoint.resolveAllowed()
 
@@ -608,9 +601,7 @@ fun gatherPluginList(entrypoint: Entrypoint): List<String> {
 
   if (entrypoint.demoAllowed) {
     val demoPrebuilts = File(stoicDemoPluginsDir).listFiles(apkFilter)!!
-    demoPrebuilts.forEach {
-      pluginList.add("${it.name.removeSuffix(".apk")} (--demo)")
-    }
+    demoPrebuilts.forEach { pluginList.add("${it.name.removeSuffix(".apk")} (--demo)") }
   }
 
   return pluginList
@@ -618,33 +609,37 @@ fun gatherPluginList(entrypoint: Entrypoint): List<String> {
 
 fun runTool(entrypoint: Entrypoint): Int {
   val toolName = entrypoint.subcommand
-  val command = when (toolName) {
-    "shell" -> ShellCommand(entrypoint)
-    "rsync" -> RsyncCommand(entrypoint)
-    "init-config" -> InitConfigCommand(entrypoint)
-    "plugin" -> PluginCommand(entrypoint)
-    "help" -> {
-      entrypoint.echoFormattedHelp()
-      return 0
-    }
-    "version" -> {
-      entrypoint.echo("stoic version ${StoicProperties.STOIC_VERSION_NAME}")
-      return 0
-    }
-    else -> {
-      if (entrypoint.isTool) {
-        // The user was definitely trying to run a tool
-        throw PithyException("tool `$toolName` not found, to see list: stoic --tool --list")
-      } else {
-        // Maybe the user was trying to run a plugin
-        throw PithyException("""
+  val command =
+    when (toolName) {
+      "shell" -> ShellCommand(entrypoint)
+      "rsync" -> RsyncCommand(entrypoint)
+      "init-config" -> InitConfigCommand(entrypoint)
+      "plugin" -> PluginCommand(entrypoint)
+      "help" -> {
+        entrypoint.echoFormattedHelp()
+        return 0
+      }
+      "version" -> {
+        entrypoint.echo("stoic version ${StoicProperties.STOIC_VERSION_NAME}")
+        return 0
+      }
+      else -> {
+        if (entrypoint.isTool) {
+          // The user was definitely trying to run a tool
+          throw PithyException("tool `$toolName` not found, to see list: stoic --tool --list")
+        } else {
+          // Maybe the user was trying to run a plugin
+          throw PithyException(
+            """
           plugin or tool `$toolName` not found, to see list:
           stoic --tool --list (for tools)
           stoic --list (for plugins)
-          """.trimIndent())
+          """
+              .trimIndent()
+          )
+        }
       }
     }
-  }
 
   command.main(entrypoint.subcommandArgs)
   return 0
@@ -653,25 +648,20 @@ fun runTool(entrypoint: Entrypoint): Int {
 fun runPluginFastPath(entrypoint: Entrypoint, apkInfo: FileWithSha?): Int {
   return runPluginFastPath(
     pkg = entrypoint.pkg,
-    pluginParsedArgs = PluginParsedArgs(
-      pluginModule = entrypoint.subcommand!!,
-      pluginArgs = entrypoint.subcommandArgs,
-      pluginEnvVars = entrypoint.env.toMap(),
-    ),
-    apkInfo = apkInfo
+    pluginParsedArgs =
+      PluginParsedArgs(
+        pluginModule = entrypoint.subcommand!!,
+        pluginArgs = entrypoint.subcommandArgs,
+        pluginEnvVars = entrypoint.env.toMap(),
+      ),
+    apkInfo = apkInfo,
   )
 }
 
-fun runPluginFastPath(
-  pkg: String,
-  pluginParsedArgs: PluginParsedArgs,
-  apkInfo: FileWithSha?
-): Int {
+fun runPluginFastPath(pkg: String, pluginParsedArgs: PluginParsedArgs, apkInfo: FileWithSha?): Int {
   // `adb forward`-powered fast path
   val serverSocketName = serverSocketName(pkg)
-  val portStr = adbProcessBuilder(
-    "forward", "tcp:0", "localabstract:$serverSocketName"
-  ).stdout()
+  val portStr = adbProcessBuilder("forward", "tcp:0", "localabstract:$serverSocketName").stdout()
   try {
     Socket("localhost", portStr.toInt()).use {
       val host = PluginHost(apkInfo, pluginParsedArgs, it.inputStream, it.outputStream)
@@ -703,19 +693,20 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
   // package is not specified. We control what plugins are present in the default package so we can
   // prevent conflicts.
   val usingDefaultPackage = entrypoint.rawPkg == null
-  val isPlugin = if (apkInfo != null || entrypoint.isEmbedded) {
-    true
-  } else if (entrypoint.isTool) {
-    // Explicitly requested a tool
-    false
-  } else if (!usingDefaultPackage) {
-    // Tools are only valid with the default package, so this must be a plugin
-    true
-  } else {
-    // The default package only has no embedded plugins other than the internal ones - if it's not
-    // one of these then it must be a tool.
-    entrypoint.subcommand?.let { isInternalPluginName(it) } ?: false
-  }
+  val isPlugin =
+    if (apkInfo != null || entrypoint.isEmbedded) {
+      true
+    } else if (entrypoint.isTool) {
+      // Explicitly requested a tool
+      false
+    } else if (!usingDefaultPackage) {
+      // Tools are only valid with the default package, so this must be a plugin
+      true
+    } else {
+      // The default package only has no embedded plugins other than the internal ones - if it's not
+      // one of these then it must be a tool.
+      entrypoint.subcommand?.let { isInternalPluginName(it) } ?: false
+    }
 
   return if (isPlugin) {
     try {
@@ -733,13 +724,14 @@ fun runPluginOrTool(entrypoint: Entrypoint): Int {
       } else if (entrypoint.attachVia == AttachVia.SDK) {
         throw Exception(
           "Protocol version mismatch - please rebuild the app with sdk version: ${StoicProperties.STOIC_VERSION_NAME}",
-          e
+          e,
         )
       } else {
         """
           Protocol version mismatch - please try restarting the app (you can use the --restart flag)
           to force Stoic to re-attach.
-        """.trimIndent()
+        """
+          .trimIndent()
         throw e
       }
     }
@@ -753,12 +745,13 @@ fun runPlugin(spec: PluginSpec, apkInfo: FileWithSha?): Int {
     try {
       return runPluginFastPath(
         pkg = spec.pkg,
-        pluginParsedArgs = PluginParsedArgs(
-          pluginModule = spec.pluginModule,
-          pluginArgs = spec.pluginArgs,
-          pluginEnvVars = spec.pluginEnvVars
-        ),
-        apkInfo = apkInfo
+        pluginParsedArgs =
+          PluginParsedArgs(
+            pluginModule = spec.pluginModule,
+            pluginArgs = spec.pluginArgs,
+            pluginEnvVars = spec.pluginEnvVars,
+          ),
+        apkInfo = apkInfo,
       )
     } catch (e: PithyException) {
       // PithyException will be caught at the outermost level
@@ -779,63 +772,68 @@ fun runPlugin(spec: PluginSpec, apkInfo: FileWithSha?): Int {
     // needed for the slow path - so it's not too bad.
     syncDevice()
 
-    val startOption = if (spec.restartApp) {
-      "restart"
-    } else {
-      "start_if_needed"
-    }
+    val startOption =
+      if (spec.restartApp) {
+        "restart"
+      } else {
+        "start_if_needed"
+      }
 
-    val debugOption = if (minLogLevel <= LogLevel.DEBUG) {
-      "debug_true"
-    } else {
-      "debug_false"
-    }
+    val debugOption =
+      if (minLogLevel <= LogLevel.DEBUG) {
+        "debug_true"
+      } else {
+        "debug_false"
+      }
 
-    val proc = adbProcessBuilder(
-      "shell",
-      shellEscapeCmd(
-        listOf(
-          "$stoicDeviceSyncDir/bin/stoic-attach",
-          "$STOIC_PROTOCOL_VERSION",
-          spec.pkg,
-          startOption,
-          debugOption,
-          spec.attachVia.str
+    val proc =
+      adbProcessBuilder(
+          "shell",
+          shellEscapeCmd(
+            listOf(
+              "$stoicDeviceSyncDir/bin/stoic-attach",
+              "$STOIC_PROTOCOL_VERSION",
+              spec.pkg,
+              startOption,
+              debugOption,
+              spec.attachVia.str,
+            )
+          ),
         )
-      )
-    )
-      .redirectInput(File("/dev/null"))
-      .redirectOutput(Redirect.PIPE)
-      .redirectErrorStream(true)
-      .start()
+        .redirectInput(File("/dev/null"))
+        .redirectOutput(Redirect.PIPE)
+        .redirectErrorStream(true)
+        .start()
 
-    val maybeError = if (minLogLevel <= LogLevel.DEBUG) {
-      val stoicAttachOutputLines = mutableListOf<String>()
-      thread {
-        proc.inputReader().use { inputReader ->
-          inputReader.lineSequence().forEach {
-            logDebug { it }
-            stoicAttachOutputLines += it
+    val maybeError =
+      if (minLogLevel <= LogLevel.DEBUG) {
+        val stoicAttachOutputLines = mutableListOf<String>()
+        thread {
+          proc.inputReader().use { inputReader ->
+            inputReader.lineSequence().forEach {
+              logDebug { it }
+              stoicAttachOutputLines += it
+            }
           }
         }
-      }
-      if (proc.waitFor() != 0) {
-        stoicAttachOutputLines.joinToString("\n")
+        if (proc.waitFor() != 0) {
+          stoicAttachOutputLines.joinToString("\n")
+        } else {
+          null
+        }
       } else {
-        null
+        if (proc.waitFor() != 0) {
+          proc.inputReader().readText()
+        } else {
+          null
+        }
       }
-    } else {
-      if (proc.waitFor() != 0) {
-        proc.inputReader().readText()
-      } else {
-        null
-      }
-    }
 
     if (maybeError != null) {
       if (spec.attachVia == AttachVia.JVMTI_ROOT) {
         if (maybeError.contains("Can't attach agent, process is not debuggable")) {
-          throw PithyException("""
+          throw PithyException(
+            """
             ${spec.pkg} appears to not have JDWP enabled
 
             To fix this you can run the following (may need to set ANDROID_SERIAL appropriately):
@@ -843,7 +841,9 @@ fun runPlugin(spec: PluginSpec, apkInfo: FileWithSha?): Int {
             (sleep is necessary to allow system processes to finish restarting):
 
             NOTE: this will enable jdwp for all apps on the device.
-          """.trimIndent())
+          """
+              .trimIndent()
+          )
         }
       }
       throw PithyException("stoic-attach failed:\n$maybeError")
@@ -853,11 +853,7 @@ fun runPlugin(spec: PluginSpec, apkInfo: FileWithSha?): Int {
     val startTime = System.nanoTime()
     while ((System.nanoTime() - startTime) < 3_000_000_000) {
       try {
-        runPluginFastPath(
-          spec.pkg,
-          PluginParsedArgs("__stoic-noop"),
-          null,
-        )
+        runPluginFastPath(spec.pkg, PluginParsedArgs("__stoic-noop"), null)
         break
       } catch (e: EOFException) {
         logInfo { "server not up yet: ${e.stackTraceToString()}" }
@@ -867,16 +863,16 @@ fun runPlugin(spec: PluginSpec, apkInfo: FileWithSha?): Int {
     }
   }
 
-
   logInfo { "server up - retrying fast-path" }
   return runPluginFastPath(
     pkg = spec.pkg,
-    pluginParsedArgs = PluginParsedArgs(
-      pluginModule = spec.pluginModule,
-      pluginArgs = spec.pluginArgs,
-      pluginEnvVars = spec.pluginEnvVars
-    ),
-    apkInfo = apkInfo
+    pluginParsedArgs =
+      PluginParsedArgs(
+        pluginModule = spec.pluginModule,
+        pluginArgs = spec.pluginArgs,
+        pluginEnvVars = spec.pluginEnvVars,
+      ),
+    apkInfo = apkInfo,
   )
 }
 
@@ -888,12 +884,11 @@ fun syncDevice() {
   logBlock(LogLevel.INFO, { "syncing device" }) {
     // The /. prevents creating an additional level of nesting when the destination directory
     // already exists.
-    check(adbProcessBuilder(
-      "push",
-      "--sync",
-      "$stoicReleaseSyncDir/.",
-      stoicDeviceSyncDir,
-    ).start().waitFor() == 0)
+    check(
+      adbProcessBuilder("push", "--sync", "$stoicReleaseSyncDir/.", stoicDeviceSyncDir)
+        .start()
+        .waitFor() == 0
+    )
   }
 }
 
@@ -901,7 +896,9 @@ fun shellEscapeCmd(cmdArgs: List<String>): String {
   return if (cmdArgs.isEmpty()) {
     ""
   } else {
-    return ProcessBuilder(listOf("bash", "-c", """ printf " %q" "$@" """, "stoic") + cmdArgs).stdout().drop(0)
+    return ProcessBuilder(listOf("bash", "-c", """ printf " %q" "$@" """, "stoic") + cmdArgs)
+      .stdout()
+      .drop(0)
   }
 }
 
@@ -915,7 +912,9 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
   if (pluginName.endsWith(".jar") || pluginName.endsWith(".apk")) {
     if (!entrypoint.userAllowed) {
       val fileType = if (pluginName.endsWith(".jar")) "jar" else "apk"
-      throw PithyException("$fileType plugin are considered user - --demo/--embedded options are incompatible")
+      throw PithyException(
+        "$fileType plugin are considered user - --demo/--embedded options are incompatible"
+      )
     }
 
     val file = File(pluginName)
@@ -934,22 +933,25 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
       syncSdk()
 
       withStatus("Compiling...") {
-        val outputPath = logBlock(LogLevel.INFO, { "building $usrPluginSrcDir" }) {
-          logInfo { "building plugin" }
-          val prefix = "STOIC_BUILD_PLUGIN_OUT="
-          try {
-            ProcessBuilder("./stoic-build-plugin")
-              .inheritIO()
-              .directory(File(usrPluginSrcDir))
-              .stdout()
-              .lineSequence()
-              .first { it.startsWith(prefix) }
-              .removePrefix(prefix)
-          } catch (e: NoSuchElementException) {
-            logDebug { e.stackTraceToString() }
-            throw PithyException("stoic-build-plugin must output line: $prefix<path-to-output-jar-or-apk>")
+        val outputPath =
+          logBlock(LogLevel.INFO, { "building $usrPluginSrcDir" }) {
+            logInfo { "building plugin" }
+            val prefix = "STOIC_BUILD_PLUGIN_OUT="
+            try {
+              ProcessBuilder("./stoic-build-plugin")
+                .inheritIO()
+                .directory(File(usrPluginSrcDir))
+                .stdout()
+                .lineSequence()
+                .first { it.startsWith(prefix) }
+                .removePrefix(prefix)
+            } catch (e: NoSuchElementException) {
+              logDebug { e.stackTraceToString() }
+              throw PithyException(
+                "stoic-build-plugin must output line: $prefix<path-to-output-jar-or-apk>"
+              )
+            }
           }
-        }
 
         return ApkCache.resolve(File(outputPath))
       }

@@ -10,44 +10,49 @@ class JvmtiField private constructor(val clazz: Class<*>, val fieldId: JFieldId)
   private var privateGeneric: String? = null
   private var privateModifiers: Int = -1
 
-  val name: String get() {
-    val result = privateName
-    if (result != null) {
-      return result
+  val name: String
+    get() {
+      val result = privateName
+      if (result != null) {
+        return result
+      }
+
+      VirtualMachine.nativeGetFieldCoreMetadata(this)
+      return privateName!!
     }
 
-    VirtualMachine.nativeGetFieldCoreMetadata(this)
-    return privateName!!
-  }
+  val signature: String
+    get() {
+      val result = privateSignature
+      if (result != null) {
+        return result
+      }
 
-  val signature: String get() {
-    val result = privateSignature
-    if (result != null) {
-      return result
+      VirtualMachine.nativeGetFieldCoreMetadata(this)
+      return privateSignature!!
     }
 
-    VirtualMachine.nativeGetFieldCoreMetadata(this)
-    return privateSignature!!
-  }
+  val modifiers: Int
+    get() {
+      val result = privateModifiers
+      if (result != -1) {
+        return result
+      }
 
-  val modifiers: Int get() {
-    val result = privateModifiers
-    if (result != -1) {
-      return result
+      VirtualMachine.nativeGetFieldCoreMetadata(this)
+      return privateModifiers
     }
-
-    VirtualMachine.nativeGetFieldCoreMetadata(this)
-    return privateModifiers
-  }
 
   fun get(obj: Any?): Any? {
-    val reflected =  VirtualMachine.nativeToReflectedField(clazz, fieldId, Modifier.isStatic(modifiers))
+    val reflected =
+      VirtualMachine.nativeToReflectedField(clazz, fieldId, Modifier.isStatic(modifiers))
     reflected.isAccessible = true
     return reflected.get(obj)
   }
 
   fun set(obj: Any?, value: Any?) {
-    val reflected = VirtualMachine.nativeToReflectedField(clazz, fieldId, Modifier.isStatic(modifiers))
+    val reflected =
+      VirtualMachine.nativeToReflectedField(clazz, fieldId, Modifier.isStatic(modifiers))
     reflected.isAccessible = true
     reflected.set(obj, value)
   }

@@ -35,20 +35,12 @@ android {
     sourceCompatibility = jvmTarget
     targetCompatibility = jvmTarget
   }
-  kotlinOptions {
-    jvmTarget = libs.versions.jvmTarget.get()
-  }
-  buildFeatures {
-    viewBinding = true
-  }
+  kotlinOptions { jvmTarget = libs.versions.jvmTarget.get() }
+  buildFeatures { viewBinding = true }
 
   // TODO: this doesn't work for source dependencies, but apparently this is the way to pre-exclude
   //   from the .aar file
-  packaging {
-    resources {
-      excludes += "META-INF/DEPENDENCIES"
-    }
-  }
+  packaging { resources { excludes += "META-INF/DEPENDENCIES" } }
 }
 
 dependencies {

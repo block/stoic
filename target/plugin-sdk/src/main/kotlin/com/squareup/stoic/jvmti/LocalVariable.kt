@@ -13,5 +13,4 @@ class LocalVariable<T>(
   val signature: String,
   val genericSignature: String?,
   val slot: Int,
-) {
-}
+) {}

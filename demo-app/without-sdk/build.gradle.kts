@@ -28,12 +28,8 @@ android {
     sourceCompatibility = jvmTarget
     targetCompatibility = jvmTarget
   }
-  kotlinOptions {
-    jvmTarget = libs.versions.jvmTarget.get()
-  }
-  buildFeatures {
-    viewBinding = true
-  }
+  kotlinOptions { jvmTarget = libs.versions.jvmTarget.get() }
+  buildFeatures { viewBinding = true }
 }
 
 dependencies {

@@ -35,15 +35,9 @@ android {
     languageVersion = "1.9"
   }
 
-  packaging {
-    resources {
-      excludes += "META-INF/DEPENDENCIES"
-    }
-  }
+  packaging { resources { excludes += "META-INF/DEPENDENCIES" } }
 
-  buildFeatures {
-    buildConfig = true
-  }
+  buildFeatures { buildConfig = true }
 }
 
 dependencies {

@@ -5,10 +5,8 @@ import com.squareup.stoic.common.logVerbose
 import java.io.OutputStream
 
 // Used to provide stdout/stderr
-class MessageWriterOutputStream(
-  private val id: Int,
-  private val writer: MessageWriter
-) : OutputStream() {
+class MessageWriterOutputStream(private val id: Int, private val writer: MessageWriter) :
+  OutputStream() {
   override fun write(b: Int) {
     write(byteArrayOf(b.toByte()), 0, 1)
   }

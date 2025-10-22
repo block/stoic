@@ -39,41 +39,42 @@ class StoicJvmti private constructor() {
   fun breakpoint(location: Location, onBreakpoint: OnBreakpoint): BreakpointRequest {
     val pluginStoic = stoic
     return VirtualMachine.eventRequestManager.createBreakpointRequest(location) { frame ->
-      pluginStoic.callWith {
-        onBreakpoint(frame)
-      }
+      pluginStoic.callWith { onBreakpoint(frame) }
     }
   }
 
   fun methodEntries(onMethodEntry: OnMethodEntry): MethodEntryRequest {
     val pluginStoic = stoic
-    return VirtualMachine.eventRequestManager.createMethodEntryRequest(Thread.currentThread()) { frame ->
-      pluginStoic.callWith {
-        onMethodEntry(frame)
-      }
+    return VirtualMachine.eventRequestManager.createMethodEntryRequest(Thread.currentThread()) {
+      frame ->
+      pluginStoic.callWith { onMethodEntry(frame) }
     }
   }
 
   fun methodExits(onMethodExit: OnMethodExit): MethodExitRequest {
     val pluginStoic = stoic
-    return VirtualMachine.eventRequestManager.createMethodExitRequest(Thread.currentThread()) { frame, value, wasPoppedByException ->
-      pluginStoic.callWith {
-        onMethodExit(frame, value, wasPoppedByException)
-      }
+    return VirtualMachine.eventRequestManager.createMethodExitRequest(Thread.currentThread()) {
+      frame,
+      value,
+      wasPoppedByException ->
+      pluginStoic.callWith { onMethodExit(frame, value, wasPoppedByException) }
     }
   }
 
-  val virtualMachine: VirtualMachine get() {
-    return VirtualMachine
-  }
+  val virtualMachine: VirtualMachine
+    get() {
+      return VirtualMachine
+    }
 
   companion object {
     @Volatile var privateIsInitialized: Boolean = false
     private val stoicJvmti: StoicJvmti = StoicJvmti()
-    val isInitialized: Boolean get() = privateIsInitialized
+    val isInitialized: Boolean
+      get() = privateIsInitialized
 
-    fun get() : StoicJvmti {
-      // We'd like to allow for plugins that get run without jvmti, but they'll have to be aware that
+    fun get(): StoicJvmti {
+      // We'd like to allow for plugins that get run without jvmti, but they'll have to be aware
+      // that
       // it's unsafe for them to access jvmti
       assert(isInitialized)
       return stoicJvmti
@@ -101,7 +102,11 @@ class Stoic(
     get() = StoicJvmti.get()
 
   // This should be the only place in this file that uses internalStoic
-  fun <T> callWith(forwardUncaught: Boolean = false, printErrors: Boolean = true, callable: Callable<T>): T {
+  fun <T> callWith(
+    forwardUncaught: Boolean = false,
+    printErrors: Boolean = true,
+    callable: Callable<T>,
+  ): T {
     val oldStoic = internalStoic.get()
     val oldClassLoader = Thread.currentThread().contextClassLoader
     internalStoic.set(this)
@@ -131,19 +136,11 @@ class Stoic(
   }
 
   fun <T> wrapCallable(callable: Callable<T>): Callable<T> {
-    return Callable {
-      callWith {
-        callable.call()
-      }
-    }
+    return Callable { callWith { callable.call() } }
   }
 
   fun wrapRunnable(runnable: Runnable): Runnable {
-    return Runnable {
-      callWith {
-        runnable.run()
-      }
-    }
+    return Runnable { callWith { runnable.run() } }
   }
 
   /**
@@ -158,10 +155,9 @@ class Stoic(
    *
    * TODO: Run-delayed and Future variants
    *
-   * If you are using a custom async mechanism you can provide support for it by using
-   * using wrapRunnable (for non-blocking behavior) or LatchedRunnable (for blocking)
+   * If you are using a custom async mechanism you can provide support for it by using using
+   * wrapRunnable (for non-blocking behavior) or LatchedRunnable (for blocking)
    */
-
   fun runOnLooper(looper: Looper, timeoutMs: Long? = DEFAULT_TIMEOUT_MS, runnable: Runnable) {
     if (timeoutMs != null) {
       val latchedRunnable = LatchedRunnable(this, runnable)
@@ -193,16 +189,12 @@ class Stoic(
       latchedRunnable.waitFor(timeoutMs)
       return t // The thread will be done by this time
     } else {
-      return kotlin.concurrent.thread {
-        wrapRunnable(runnable).run()
-      }
+      return kotlin.concurrent.thread { wrapRunnable(runnable).run() }
     }
   }
 
   private fun rawStoicThread(runnable: Runnable): Thread {
-    return kotlin.concurrent.thread {
-      callWith { runnable.run() }
-    }
+    return kotlin.concurrent.thread { callWith { runnable.run() } }
   }
 
   fun getenv(name: String): String? {
@@ -213,9 +205,10 @@ class Stoic(
    * The src path of the shebang script used to invoke stoic, or null if stoic wasn't invoked via a
    * shebang.
    */
-  val shebangSrcPath: String? get() {
-    return getenv("STOIC_SHEBANG_SRC_PATH")
-  }
+  val shebangSrcPath: String?
+    get() {
+      return getenv("STOIC_SHEBANG_SRC_PATH")
+    }
 
   // It'd be nice to allow plugins to use System.in/out/err directly, but it's easy to end up with
   // weird problems when you System.setOut/setErr so I abandoned this approach. I'd need to be
@@ -279,12 +272,13 @@ class LatchedRunnable(stoicInstance: Stoic, runnable: Runnable) : Runnable {
   fun waitFor(timeoutMs: Long) {
     if (!latch.await(timeoutMs, MILLISECONDS)) {
       val runnableStartUptimeMillis = runnableStartUptimeMillisAtomic.get()
-      val msg = if (runnableStartUptimeMillis <= 0) {
-        "Unable to schedule $wrappedRunnable within ${timeoutMs}ms"
-      } else {
-        val scheduleDelay = runnableStartUptimeMillis - startUptimeMillis
-        "$wrappedRunnable (scheduled after ${scheduleDelay}ms) did not complete within ${timeoutMs}ms"
-      }
+      val msg =
+        if (runnableStartUptimeMillis <= 0) {
+          "Unable to schedule $wrappedRunnable within ${timeoutMs}ms"
+        } else {
+          val scheduleDelay = runnableStartUptimeMillis - startUptimeMillis
+          "$wrappedRunnable (scheduled after ${scheduleDelay}ms) did not complete within ${timeoutMs}ms"
+        }
       throw TimeoutException(msg).also { e ->
         ranOnThread.get()?.stackTrace?.also { e.stackTrace = it }
       }
@@ -293,11 +287,12 @@ class LatchedRunnable(stoicInstance: Stoic, runnable: Runnable) : Runnable {
 }
 
 // Could be useful to someone writing code that runs on either Android/JVM
-val isAndroid = try {
-  Build.VERSION.SDK_INT > -1
-} catch (e: Throwable) {
-  false
-}
+val isAndroid =
+  try {
+    Build.VERSION.SDK_INT > -1
+  } catch (e: Throwable) {
+    false
+  }
 
 fun <T> highlander(list: List<T>): T {
   if (list.size != 1) {
@@ -307,8 +302,9 @@ fun <T> highlander(list: List<T>): T {
   return list[0]
 }
 
-class Stack(stackTrace: Array<StackTraceElement>): Throwable() {
-  constructor(stackTrace: List<StackTraceElement>): this(stackTrace.toTypedArray())
+class Stack(stackTrace: Array<StackTraceElement>) : Throwable() {
+  constructor(stackTrace: List<StackTraceElement>) : this(stackTrace.toTypedArray())
+
   init {
     this.stackTrace = stackTrace
   }

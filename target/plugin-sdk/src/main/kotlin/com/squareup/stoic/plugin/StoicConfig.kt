@@ -5,8 +5,8 @@ import android.content.Context
 /**
  * Configuration for Stoic integration.
  *
- * To configure Stoic for your app, implement this interface and declare it in your AndroidManifest.xml:
- *
+ * To configure Stoic for your app, implement this interface and declare it in your
+ * AndroidManifest.xml:
  * ```xml
  * <application>
  *     <meta-data
@@ -16,7 +16,6 @@ import android.content.Context
  * ```
  *
  * Then implement the config:
- *
  * ```kotlin
  * class MyStoicConfig : StoicConfig {
  *     override fun getPlugins(context: Context): Map<String, Lazy<StoicPlugin>> {
@@ -37,16 +36,16 @@ import android.content.Context
  * The plugins can then be invoked with: `stoic PACKAGE PLUGIN_NAME ARGS`.
  */
 interface StoicConfig {
-    /**
-     * Returns a map of plugin names to plugin instances.
-     *
-     * Plugin names should be lowercase and use hyphens for word separation (e.g., "my-plugin").
-     * These names are used on the command line: `stoic PACKAGE PLUGIN_NAME`
-     *
-     * Plugins are lazy-loaded to avoid initialization overhead for unused plugins.
-     *
-     * @param context The application context
-     * @return Map of plugin name to lazy plugin instance
-     */
-    fun getEmbeddedPlugins(context: Context): Map<String, Lazy<StoicPlugin>>
+  /**
+   * Returns a map of plugin names to plugin instances.
+   *
+   * Plugin names should be lowercase and use hyphens for word separation (e.g., "my-plugin"). These
+   * names are used on the command line: `stoic PACKAGE PLUGIN_NAME`
+   *
+   * Plugins are lazy-loaded to avoid initialization overhead for unused plugins.
+   *
+   * @param context The application context
+   * @return Map of plugin name to lazy plugin instance
+   */
+  fun getEmbeddedPlugins(context: Context): Map<String, Lazy<StoicPlugin>>
 }

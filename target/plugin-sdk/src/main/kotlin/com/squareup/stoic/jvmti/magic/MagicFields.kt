@@ -35,8 +35,11 @@ class MagicFields(private val obj: Any?, private val clazz: JvmtiClass) {
       var baseClazz = clazz
       while (true) {
         filteredByName = filter(baseClazz, name, signature)
-        if (filteredByName.isNotEmpty()) { break }
-        else if (baseClazz.clazz.superclass == null) { break }
+        if (filteredByName.isNotEmpty()) {
+          break
+        } else if (baseClazz.clazz.superclass == null) {
+          break
+        }
 
         baseClazz = JvmtiClass[baseClazz.clazz.superclass]
       }

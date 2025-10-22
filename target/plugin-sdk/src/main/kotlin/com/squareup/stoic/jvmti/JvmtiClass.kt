@@ -7,27 +7,32 @@ class JvmtiClass private constructor(val clazz: Class<*>) {
   private var privateDeclaredFields: List<JvmtiField>? = null
   private var privateDeclaredMethods: List<JvmtiMethod>? = null
 
-  val simpleName get(): String = clazz.name.substringAfterLast('.')
+  val simpleName
+    get(): String = clazz.name.substringAfterLast('.')
 
-  val declaredFields get(): List<JvmtiField> {
-    synchronized(this) {
-      return privateDeclaredFields ?: run {
-        val result = VirtualMachine.nativeGetClassFields(clazz).toList()
-        privateDeclaredFields = result
-        result
+  val declaredFields
+    get(): List<JvmtiField> {
+      synchronized(this) {
+        return privateDeclaredFields
+          ?: run {
+            val result = VirtualMachine.nativeGetClassFields(clazz).toList()
+            privateDeclaredFields = result
+            result
+          }
       }
     }
-  }
 
-  val declaredMethods get(): List<JvmtiMethod> {
-    synchronized(this) {
-      return privateDeclaredMethods ?: run {
-        val result = VirtualMachine.nativeGetClassMethods(clazz).toList()
-        privateDeclaredMethods = result
-        result
+  val declaredMethods
+    get(): List<JvmtiMethod> {
+      synchronized(this) {
+        return privateDeclaredMethods
+          ?: run {
+            val result = VirtualMachine.nativeGetClassMethods(clazz).toList()
+            privateDeclaredMethods = result
+            result
+          }
       }
     }
-  }
 
   fun declaredMethod(name: String, signature: String): JvmtiMethod {
     val filteredMethods = declaredMethods.filter { it.name == name && it.signature == signature }
@@ -42,13 +47,17 @@ class JvmtiClass private constructor(val clazz: Class<*>) {
         """
           Method ${clazz.name}.$name$signature does not exist. ${clazz.name}.$name with the
           following signatures exist:
-        """.trimIndent() + "\n$signatures"
+        """
+          .trimIndent() + "\n$signatures"
       )
     } else {
       val methodNames = declaredMethods.map { "${it.name}\n" }.toSet()
-      throw NoSuchMethodException("""
+      throw NoSuchMethodException(
+        """
             Method $clazz.$name does not exist. $clazz has declared methods with the following names:
-          """.trimIndent() + "\n$methodNames")
+          """
+          .trimIndent() + "\n$methodNames"
+      )
     }
   }
 
@@ -78,17 +87,19 @@ class JvmtiClass private constructor(val clazz: Class<*>) {
       }
 
       val classNameWithDots = signature.replace('/', '.')
-      val className = if (classNameWithDots.endsWith(';')) {
-        classNameWithDots.removePrefix("L").removeSuffix(";")
-      } else {
-        classNameWithDots
-      }
+      val className =
+        if (classNameWithDots.endsWith(';')) {
+          classNameWithDots.removePrefix("L").removeSuffix(";")
+        } else {
+          classNameWithDots
+        }
 
-      val clazz = if (classLoader == null) {
-        Thread.currentThread().contextClassLoader.loadClass(className)
-      } else {
-        classLoader.loadClass(className)
-      }
+      val clazz =
+        if (classLoader == null) {
+          Thread.currentThread().contextClassLoader.loadClass(className)
+        } else {
+          classLoader.loadClass(className)
+        }
       return JvmtiClass[clazz]
     }
   }

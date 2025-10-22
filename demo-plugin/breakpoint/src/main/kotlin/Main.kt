@@ -4,8 +4,8 @@ import com.squareup.stoic.Stack
 import com.squareup.stoic.helpers.eprintln
 import com.squareup.stoic.helpers.exit
 import com.squareup.stoic.helpers.println
-import com.squareup.stoic.jvmti.LocalVariable
 import com.squareup.stoic.jvmti.JvmtiMethod
+import com.squareup.stoic.jvmti.LocalVariable
 import com.squareup.stoic.threadlocals.jvmti
 import java.util.concurrent.CountDownLatch
 
@@ -21,7 +21,7 @@ fun usage() {
 enum class EvalTime {
   DEFAULT,
   ON_ENTRY,
-  ON_EXIT
+  ON_EXIT,
 }
 
 enum class PrintType {
@@ -43,11 +43,7 @@ data class PrintSpec(
   val printType: PrintType,
 )
 
-data class BpDesc(
-  val sig: String,
-  val dumpStack: Boolean,
-  val printDescs: List<PrintDesc>,
-)
+data class BpDesc(val sig: String, val dumpStack: Boolean, val printDescs: List<PrintDesc>)
 
 data class BpSpec(
   val method: JvmtiMethod,
@@ -75,7 +71,8 @@ fun main(args: Array<String>) {
     }
 
     when (arg) {
-      "--stack", "-s" -> dumpStack = true
+      "--stack",
+      "-s" -> dumpStack = true
       "-p" -> {
         val expr = args[++i]
         printDescs.add(PrintDesc(expr))
@@ -87,29 +84,41 @@ fun main(args: Array<String>) {
     }
   }
 
-  val bpSpecs = bpDescs.map { bpDesc ->
-    val method = JvmtiMethod.bySig(bpDesc.sig)
-    val printSpecs = bpDesc.printDescs.flatMap { printDesc ->
-      when (printDesc.expr) {
-        "*" -> {
-          val evalTime = if (printDesc.evalTime == EvalTime.DEFAULT) { ON_ENTRY } else { printDesc.evalTime }
-          method.arguments.map {
-            PrintSpec(it, evalTime, printDesc.printType)
+  val bpSpecs =
+    bpDescs.map { bpDesc ->
+      val method = JvmtiMethod.bySig(bpDesc.sig)
+      val printSpecs =
+        bpDesc.printDescs.flatMap { printDesc ->
+          when (printDesc.expr) {
+            "*" -> {
+              val evalTime =
+                if (printDesc.evalTime == EvalTime.DEFAULT) {
+                  ON_ENTRY
+                } else {
+                  printDesc.evalTime
+                }
+              method.arguments.map { PrintSpec(it, evalTime, printDesc.printType) }
+            }
+            "return" -> {
+              check(printDesc.evalTime != ON_ENTRY)
+              listOf(PrintSpec(null, ON_EXIT, printDesc.printType))
+            }
+            else -> {
+              val evalTime =
+                if (printDesc.evalTime == EvalTime.DEFAULT) {
+                  ON_ENTRY
+                } else {
+                  printDesc.evalTime
+                }
+              listOf(
+                PrintSpec(method.argumentByName<Any>(printDesc.expr), evalTime, printDesc.printType)
+              )
+            }
           }
         }
-        "return" -> {
-          check(printDesc.evalTime != ON_ENTRY)
-          listOf(PrintSpec(null, ON_EXIT, printDesc.printType))
-        }
-        else -> {
-          val evalTime = if (printDesc.evalTime == EvalTime.DEFAULT) { ON_ENTRY } else { printDesc.evalTime }
-          listOf(PrintSpec(method.argumentByName<Any>(printDesc.expr), evalTime, printDesc.printType))
-        }
-      }
+      val hasOnExit = printSpecs.any { it.evalTime == ON_EXIT }
+      BpSpec(method, bpDesc.dumpStack, hasOnExit, printSpecs)
     }
-    val hasOnExit = printSpecs.any { it.evalTime == ON_EXIT }
-    BpSpec(method, bpDesc.dumpStack, hasOnExit, printSpecs)
-  }
 
   for (bpSpec in bpSpecs) {
     jvmti.breakpoint(bpSpec.method.startLocation) { entryFrame ->
@@ -124,11 +133,12 @@ fun main(args: Array<String>) {
 
         entryFrame.onExit { exitFrame, returnValue, wasPoppedByException ->
           for (printSpec in bpSpec.printSpecs.filter { it.evalTime == ON_EXIT }) {
-            val str = if (printSpec.localVariable != null) {
-              exitFrame.get(printSpec.localVariable).toString()
-            } else {
-              returnValue?.toString() ?: "null"
-            }
+            val str =
+              if (printSpec.localVariable != null) {
+                exitFrame.get(printSpec.localVariable).toString()
+              } else {
+                returnValue?.toString() ?: "null"
+              }
             values.add(str)
           }
           println("${bpSpec.method.name} ${values.joinToString(" ")}")

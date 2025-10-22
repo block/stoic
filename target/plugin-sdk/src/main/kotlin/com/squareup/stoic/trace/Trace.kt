@@ -1,7 +1,5 @@
 package com.squareup.stoic.trace
 
-import com.squareup.stoic.trace.Rule.RuleLeaf
-import com.squareup.stoic.trace.Rule.RuleMap
 import com.squareup.stoic.Stack
 import com.squareup.stoic.helpers.eprintln
 import com.squareup.stoic.helpers.println
@@ -16,6 +14,8 @@ import com.squareup.stoic.jvmti.magics.f
 import com.squareup.stoic.threadlocals.jvmti
 import com.squareup.stoic.trace.ResultTree.ResultLeaf
 import com.squareup.stoic.trace.ResultTree.ResultNode
+import com.squareup.stoic.trace.Rule.RuleLeaf
+import com.squareup.stoic.trace.Rule.RuleMap
 import java.lang.reflect.Modifier
 
 val Include = RuleLeaf { type ->
@@ -23,10 +23,17 @@ val Include = RuleLeaf { type ->
     SimpleMethodEvaluator(type)
   } else {
     val clazz = (type as JvmtiClass).clazz
-    val toStringClasses = listOf(
-      Boolean::class.java, Byte::class.java, Short::class.java, Int::class.java, Long::class.java,
-      Float::class.java, Double::class.java, String::class.java
-    )
+    val toStringClasses =
+      listOf(
+        Boolean::class.java,
+        Byte::class.java,
+        Short::class.java,
+        Int::class.java,
+        Long::class.java,
+        Float::class.java,
+        Double::class.java,
+        String::class.java,
+      )
     if (toStringClasses.any { clazz.isAssignableFrom(it) }) {
       ToStringEvaluator()
     } else {
@@ -43,9 +50,7 @@ val OmitThis = rules(default = Include, "this" to Omit)
 
 fun traceExpect(expected: String, vararg rules: Pair<String, Rule>, runnable: Runnable) {
   val sb = StringBuilder()
-  trace(*rules) { name, tree ->
-    sb.append(methodTreeToString(name, tree))
-  }
+  trace(*rules) { name, tree -> sb.append(methodTreeToString(name, tree)) }
 
   runnable.run()
 
@@ -72,7 +77,7 @@ fun <T> stringify(clazz: Class<T>, stringifier: (T) -> String): RuleLeaf {
       throw IllegalArgumentException("${jvmtiClass.simpleName} is not compatible with $clazz")
     }
 
-    object: ValueEvaluator() {
+    object : ValueEvaluator() {
       override fun apply(obj: Any?): ResultTree {
         return ResultLeaf(stringifier(obj as T))
       }
@@ -81,16 +86,18 @@ fun <T> stringify(clazz: Class<T>, stringifier: (T) -> String): RuleLeaf {
 }
 
 sealed class Rule {
-  class RuleMap(private val default: Rule?, private val rules: List<Pair<String?, Rule?>>): Rule() {
+  class RuleMap(private val default: Rule?, private val rules: List<Pair<String?, Rule?>>) :
+    Rule() {
     /**
      * Gather members.
      *
-     * Given a map of name/field, apply com.squareup.stoic.trace.rules to produce a list of name/field/com.squareup.stoic.trace.Rule triples
-     * Optionally, populate a list of unmatched com.squareup.stoic.trace.rules
+     * Given a map of name/field, apply com.squareup.stoic.trace.rules to produce a list of
+     * name/field/com.squareup.stoic.trace.Rule triples Optionally, populate a list of unmatched
+     * com.squareup.stoic.trace.rules
      */
     fun <T> gather(
       members: Map<String?, List<T>>,
-      unmatched: MutableList<String?>?
+      unmatched: MutableList<String?>?,
     ): List<Triple<String?, T, Rule>> {
       val result = mutableListOf<Triple<String?, T, Rule>>()
       val matched = mutableSetOf<String?>()
@@ -111,26 +118,29 @@ sealed class Rule {
 
       if (default != null) {
         // If there is a default, then we apply it to each non-matched key
-        members.filter { it.key !in matched }.forEach { (key, values) ->
-          for (value in values) {
-            result.add(Triple(key, value, default))
+        members
+          .filter { it.key !in matched }
+          .forEach { (key, values) ->
+            for (value in values) {
+              result.add(Triple(key, value, default))
+            }
           }
-        }
       }
 
       return result
     }
   }
 
-  // JvmtiClass/JvmtiMethod -> com.squareup.stoic.trace.MethodEvaluator/com.squareup.stoic.trace.ValueEvaluator
-  class RuleLeaf(val typeToEvaluator: (type: Any) -> Any?): Rule()
+  // JvmtiClass/JvmtiMethod ->
+  // com.squareup.stoic.trace.MethodEvaluator/com.squareup.stoic.trace.ValueEvaluator
+  class RuleLeaf(val typeToEvaluator: (type: Any) -> Any?) : Rule()
 }
 
 abstract class MethodEvaluator(val method: JvmtiMethod) {
   abstract fun apply(frame: StackFrame): ResultTree
 }
 
-class SimpleMethodEvaluator(method: JvmtiMethod): MethodEvaluator(method) {
+class SimpleMethodEvaluator(method: JvmtiMethod) : MethodEvaluator(method) {
   private val result = ResultLeaf("...")
 
   override fun apply(frame: StackFrame): ResultTree {
@@ -140,15 +150,16 @@ class SimpleMethodEvaluator(method: JvmtiMethod): MethodEvaluator(method) {
 
 class MappedMethodEvaluator(
   method: JvmtiMethod,
-  private val localVars: List<Pair<LocalVariable<*>, ValueEvaluator>>
-): MethodEvaluator(method) {
+  private val localVars: List<Pair<LocalVariable<*>, ValueEvaluator>>,
+) : MethodEvaluator(method) {
   override fun apply(frame: StackFrame): ResultTree {
     return ResultNode(
       method.simpleQualifiedName,
       localVars.map { (localVar, objEval) ->
         val value = frame.get(localVar)
         Pair(localVar.name, objEval.apply(value))
-      })
+      },
+    )
   }
 }
 
@@ -156,9 +167,8 @@ abstract class ValueEvaluator {
   abstract fun apply(obj: Any?): ResultTree
 }
 
-class MappedObjEvaluator(
-  private val fields: List<Pair<JvmtiField, ValueEvaluator>>
-): ValueEvaluator() {
+class MappedObjEvaluator(private val fields: List<Pair<JvmtiField, ValueEvaluator>>) :
+  ValueEvaluator() {
   override fun apply(obj: Any?): ResultTree {
     return if (obj == null) {
       ResultLeaf("null")
@@ -169,13 +179,13 @@ class MappedObjEvaluator(
           val value = field.get(obj)
           val subtree = objEval.apply(value)
           Pair(field.name, subtree)
-        }
+        },
       )
     }
   }
 }
 
-class SimpleValueEvaluator(private val jvmtiClass: JvmtiClass): ValueEvaluator() {
+class SimpleValueEvaluator(private val jvmtiClass: JvmtiClass) : ValueEvaluator() {
   override fun apply(obj: Any?): ResultTree {
     return if (obj == null) {
       ResultLeaf("null")
@@ -187,14 +197,13 @@ class SimpleValueEvaluator(private val jvmtiClass: JvmtiClass): ValueEvaluator()
   }
 }
 
-class ToStringEvaluator: ValueEvaluator() {
+class ToStringEvaluator : ValueEvaluator() {
   override fun apply(obj: Any?): ResultTree {
     return ResultLeaf("$obj")
   }
 }
 
-
-//class TypeEvaluator(val subrules: List<Pair<JvmtiField, TypeEvaluator>>) {
+// class TypeEvaluator(val subrules: List<Pair<JvmtiField, TypeEvaluator>>) {
 //  fun apply(obj: Any?): com.squareup.stoic.trace.ResultTree {
 //    if (obj == null) {
 //      return com.squareup.stoic.trace.ResultTree("null")
@@ -203,28 +212,30 @@ class ToStringEvaluator: ValueEvaluator() {
 //        subrules.map { (field, subrule) -> Pair(field.name, subrule.apply(field.get(obj))) })
 //    }
 //  }
-//}
+// }
 
-//class com.squareup.stoic.trace.MethodEvaluator(
+// class com.squareup.stoic.trace.MethodEvaluator(
 //  val name: String,
 //  val jvmtiMethod: JvmtiMethod,
 //  private val subrules: List<Pair<LocalVariable<*>, TypeEvaluator>>
-//) {
+// ) {
 //  fun apply(frame: StackFrame): com.squareup.stoic.trace.ResultTree {
 //    return com.squareup.stoic.trace.ResultTree(
 //      "${jvmtiMethod.clazz.simpleName}.${jvmtiMethod.name}",
 //      subrules.map { (localVar, subrule) ->
-//           com.squareup.stoic.trace.ResultTree(localVar.name!!, subrule.apply(frame.get(localVar)))
+//           com.squareup.stoic.trace.ResultTree(localVar.name!!,
+// subrule.apply(frame.get(localVar)))
 //          })
 //  }
-//}
+// }
 
 // key/value pairs, where the value is either a String or a com.squareup.stoic.trace.ResultTree
 sealed class ResultTree {
-  class ResultNode(val value: String, val children: List<Pair<String?, ResultTree>> = listOf()): ResultTree()
-  class ResultLeaf(val value: String): ResultTree()
-}
+  class ResultNode(val value: String, val children: List<Pair<String?, ResultTree>> = listOf()) :
+    ResultTree()
 
+  class ResultLeaf(val value: String) : ResultTree()
+}
 
 // resolve a top-level rule into a list of MethodEvaluators
 // the key is assumed to be a class sig
@@ -238,17 +249,19 @@ fun resolveClass(key: String, rule: Rule): List<MethodEvaluator> {
   val subclasses = jvmti.subclasses(jvmtiClass.clazz).map { JvmtiClass[it] }
   return when (rule) {
     is RuleLeaf -> resolveClassLeaf(jvmtiClass, subclasses, rule)
-    is RuleMap -> resolveClassMap(jvmtiClass, subclasses, rule.gather(
-      jvmtiClass.declaredMethods.groupBy { it.name },
-      null)
-    )
+    is RuleMap ->
+      resolveClassMap(
+        jvmtiClass,
+        subclasses,
+        rule.gather(jvmtiClass.declaredMethods.groupBy { it.name }, null),
+      )
   }
 }
 
 fun resolveClassLeaf(
   rootClass: JvmtiClass,
   subclasses: List<JvmtiClass>,
-  rule: RuleLeaf
+  rule: RuleLeaf,
 ): List<MethodEvaluator> {
   return rootClass.declaredMethods.flatMap { jvmtiMethod ->
     resolveMethodLeaf(jvmtiMethod, subclasses, rule)
@@ -258,7 +271,7 @@ fun resolveClassLeaf(
 fun resolveClassMap(
   rootClass: JvmtiClass,
   subclasses: List<JvmtiClass>,
-  rules: List<Triple<String?, JvmtiMethod, Rule?>>
+  rules: List<Triple<String?, JvmtiMethod, Rule?>>,
 ): List<MethodEvaluator> {
   return rules.flatMap { (methodName, method, rule) ->
     if (rule != null) {
@@ -272,16 +285,18 @@ fun resolveClassMap(
 fun resolveTypeRule(jvmtiClass: JvmtiClass, rule: Rule): ValueEvaluator? {
   return when (rule) {
     is RuleMap -> {
-      val fieldPairs = rule.gather(
-        jvmtiClass.declaredFields
-          .filter { !Modifier.isStatic(it.modifiers) }
-          .groupBy { it.name },
-        null
-      )
-        .mapNotNull { (_, field, subrule) ->
-          val subtype = JvmtiClass.bySig(field.signature)
-          resolveTypeRule(subtype, subrule)?.let { Pair(field, it) }
-        }
+      val fieldPairs =
+        rule
+          .gather(
+            jvmtiClass.declaredFields
+              .filter { !Modifier.isStatic(it.modifiers) }
+              .groupBy { it.name },
+            null,
+          )
+          .mapNotNull { (_, field, subrule) ->
+            val subtype = JvmtiClass.bySig(field.signature)
+            resolveTypeRule(subtype, subrule)?.let { Pair(field, it) }
+          }
 
       MappedObjEvaluator(fieldPairs)
     }
@@ -295,45 +310,47 @@ fun resolveMethodMap(
   name: String,
   jvmtiMethod: JvmtiMethod,
   subclasses: List<JvmtiClass>,
-  rule: Rule
+  rule: Rule,
 ): List<MethodEvaluator> {
   return subclasses.mapNotNull { jvmtiClass ->
     try {
-      jvmtiClass.declaredMethod(jvmtiMethod.name, jvmtiMethod.signature)
-    } catch (e: NoSuchMethodException) {
-      // override not present
-      null
-    }?.let { subclassMethod ->
-      // We need an evaluator for each argument
-      when (rule) {
-        is RuleMap -> {
-          // TODO: match locals by index, since name can change between super/subclass impl
-          val localVarPairs = rule.gather(
-            subclassMethod.arguments.groupBy { it.name },
-            null
-          ).mapNotNull { (_, localVar, subrule) ->
-            val subtype = JvmtiClass.bySig(localVar.signature)
-            resolveTypeRule(subtype, subrule)?.let { Pair(localVar, it) }
+        jvmtiClass.declaredMethod(jvmtiMethod.name, jvmtiMethod.signature)
+      } catch (e: NoSuchMethodException) {
+        // override not present
+        null
+      }
+      ?.let { subclassMethod ->
+        // We need an evaluator for each argument
+        when (rule) {
+          is RuleMap -> {
+            // TODO: match locals by index, since name can change between super/subclass impl
+            val localVarPairs =
+              rule.gather(subclassMethod.arguments.groupBy { it.name }, null).mapNotNull {
+                (_, localVar, subrule) ->
+                val subtype = JvmtiClass.bySig(localVar.signature)
+                resolveTypeRule(subtype, subrule)?.let { Pair(localVar, it) }
+              }
+            MappedMethodEvaluator(subclassMethod, localVarPairs)
           }
-          MappedMethodEvaluator(subclassMethod, localVarPairs)
-        }
 
-        is RuleLeaf -> {
-          val localVarPairs = subclassMethod.arguments.map {
-            val valueEval = rule.typeToEvaluator(JvmtiClass.bySig(it.signature)) as ValueEvaluator
-            Pair(it, valueEval)
+          is RuleLeaf -> {
+            val localVarPairs =
+              subclassMethod.arguments.map {
+                val valueEval =
+                  rule.typeToEvaluator(JvmtiClass.bySig(it.signature)) as ValueEvaluator
+                Pair(it, valueEval)
+              }
+            MappedMethodEvaluator(subclassMethod, localVarPairs)
           }
-          MappedMethodEvaluator(subclassMethod, localVarPairs)
         }
       }
-    }
   }
 }
 
 fun resolveMethodLeaf(
   jvmtiMethod: JvmtiMethod,
   subclasses: List<JvmtiClass>,
-  rule: RuleLeaf
+  rule: RuleLeaf,
 ): List<MethodEvaluator> {
   return subclasses.mapNotNull { jvmtiClass ->
     try {
@@ -346,9 +363,8 @@ fun resolveMethodLeaf(
   }
 }
 
-
-
-// Structured com.squareup.stoic.trace.trace declaration. This is a complex API, but you can get started by following
+// Structured com.squareup.stoic.trace.trace declaration. This is a complex API, but you can get
+// started by following
 // examples rather than reading the entire documentation.
 //
 // e.g.
@@ -373,7 +389,8 @@ fun resolveMethodLeaf(
 //   )
 // )
 //
-// We take in a list of com.squareup.stoic.trace.rules describing what to com.squareup.stoic.trace.trace. We type-check them to produce a list of
+// We take in a list of com.squareup.stoic.trace.rules describing what to
+// com.squareup.stoic.trace.trace. We type-check them to produce a list of
 // evaluators, describing how to capture state at each breakpoint. When the evaluators run, they
 // produce a com.squareup.stoic.trace.ResultTree, which is passed to the `consume` parameter.
 //
@@ -446,7 +463,7 @@ fun resultTreeToString(name: String?, tree: ResultTree, indent: String, sb: Stri
   }
 }
 
-//fun traceTopo(traceTopo: Map<JvmtiClass, Map<String, Stringifier<*>>>, dedupe: Boolean) {
+// fun traceTopo(traceTopo: Map<JvmtiClass, Map<String, Stringifier<*>>>, dedupe: Boolean) {
 //  val dedupeCache = LruCache<String, Unit>(8192)
 //
 //  traceTopo.forEach { (clazz, classSpec) ->
@@ -472,13 +489,13 @@ fun resultTreeToString(name: String?, tree: ResultTree, indent: String, sb: Stri
 //    }
 //  }
 //
-//}
+// }
 //
-//typealias SpecialToString = (Any?) -> String
+// typealias SpecialToString = (Any?) -> String
 //
 //// Map of (class-name, method-name, argument-name) to SpecialToString
 //// This describes special com.squareup.stoic.trace.rules for stringifying certain arguments
-//val specialToStrings: Map<Triple<String, String, String>, SpecialToString> = mapOf(
+// val specialToStrings: Map<Triple<String, String, String>, SpecialToString> = mapOf(
 //  Triple(
 //      "android.view.ViewRootImpl\$AccessibilityInteractionConnection",
 //      "performAccessibilityAction",
@@ -519,29 +536,47 @@ fun resultTreeToString(name: String?, tree: ResultTree, indent: String, sb: Stri
 //      value as Int,
 //      true)
 //  },
-//)
+// )
 
-fun getConstantNameByValue(constantsClass: Class<*>, fieldPrefix: String, value: Int, includePrefix: Boolean = false): String {
+fun getConstantNameByValue(
+  constantsClass: Class<*>,
+  fieldPrefix: String,
+  value: Int,
+  includePrefix: Boolean = false,
+): String {
   // TODO: cache this map
-  val valueToNameMap = JvmtiClass[constantsClass].declaredFields
-    .filter { it.signature == "I" }
-    .filter { it.modifiers and Modifier.STATIC != 0}
-    .filter { it.modifiers and Modifier.FINAL != 0}
-    .filter { it.name.startsWith(fieldPrefix) }
-    .associate { it.get(null) to it.name }
+  val valueToNameMap =
+    JvmtiClass[constantsClass]
+      .declaredFields
+      .filter { it.signature == "I" }
+      .filter { it.modifiers and Modifier.STATIC != 0 }
+      .filter { it.modifiers and Modifier.FINAL != 0 }
+      .filter { it.name.startsWith(fieldPrefix) }
+      .associate { it.get(null) to it.name }
 
   val result = valueToNameMap[value] ?: return "Unknown constant value: $value"
-  return if (includePrefix) { result } else { result.drop(fieldPrefix.length) }
+  return if (includePrefix) {
+    result
+  } else {
+    result.drop(fieldPrefix.length)
+  }
 }
 
-fun getFlagNames(constantsClass: Class<*>, fieldPrefix: String, value: Int, includePrefix: Boolean = false): String {
+fun getFlagNames(
+  constantsClass: Class<*>,
+  fieldPrefix: String,
+  value: Int,
+  includePrefix: Boolean = false,
+): String {
   // TODO: cache this map
-  val valueToNameMap = JvmtiClass[constantsClass].declaredFields
-    .filter { it.signature == "I" }
-    .filter { it.modifiers and Modifier.STATIC != 0}
-    .filter { it.modifiers and Modifier.FINAL != 0}
-    .filter { it.name.startsWith(fieldPrefix) }
-    .associate { it.get(null) to it.name }
+  val valueToNameMap =
+    JvmtiClass[constantsClass]
+      .declaredFields
+      .filter { it.signature == "I" }
+      .filter { it.modifiers and Modifier.STATIC != 0 }
+      .filter { it.modifiers and Modifier.FINAL != 0 }
+      .filter { it.name.startsWith(fieldPrefix) }
+      .associate { it.get(null) to it.name }
 
   val flagNames = mutableListOf<String>()
   for (flagPos in 0..31) {
@@ -590,60 +625,61 @@ fun identityString(obj: Any?): String {
 }
 
 fun traceMethodUntilExit(bpMethod: JvmtiMethod) {
-  jvmti.breakpoint(bpMethod.startLocation) { breakpointFrame ->
-    traceUntilExit(breakpointFrame)
-  }
+  jvmti.breakpoint(bpMethod.startLocation) { breakpointFrame -> traceUntilExit(breakpointFrame) }
 }
 
 fun traceUntilExit(breakpointFrame: StackFrame) {
   val bpMethod = breakpointFrame.location.method
   println("-> called ${bpMethod.name}(...)")
 
-  val entryRequest = jvmti.methodEntries { frame ->
-    val method = frame.location.method
-    val level = frame.height - breakpointFrame.height
-    val indent = "  ".repeat(level)
-    //println("$indent-> ${method.clazz.name}.${method.name} (...)")
-
-  }
-  var exitRequest: MethodExitRequest? = null
-  exitRequest = jvmti.methodExits { frame, value, wasPoppedByException ->
-    val method = frame.location.method
-    if (frame.height <= breakpointFrame.height) {
-      if (frame.height == breakpointFrame.height) {
-        check(bpMethod.methodId == frame.location.method.methodId)
-        println("<- exiting from ${bpMethod.name} (${java.lang.Long.toHexString(value as Long)})")
-      } else {
-        println("<- exiting from ${bpMethod.name} (wasPoppedByException? $wasPoppedByException)")
-      }
-      entryRequest.close()
-      exitRequest!!.close()
-      println(Stack(frame.stackTrace).stackTraceToString())
-    } else {
+  val entryRequest =
+    jvmti.methodEntries { frame ->
+      val method = frame.location.method
       val level = frame.height - breakpointFrame.height
       val indent = "  ".repeat(level)
-      //println("$indent<- ${method.clazz.name}.${method.name} (...)")
+      // println("$indent-> ${method.clazz.name}.${method.name} (...)")
+
     }
-  }
-
+  var exitRequest: MethodExitRequest? = null
+  exitRequest =
+    jvmti.methodExits { frame, value, wasPoppedByException ->
+      val method = frame.location.method
+      if (frame.height <= breakpointFrame.height) {
+        if (frame.height == breakpointFrame.height) {
+          check(bpMethod.methodId == frame.location.method.methodId)
+          println("<- exiting from ${bpMethod.name} (${java.lang.Long.toHexString(value as Long)})")
+        } else {
+          println("<- exiting from ${bpMethod.name} (wasPoppedByException? $wasPoppedByException)")
+        }
+        entryRequest.close()
+        exitRequest!!.close()
+        println(Stack(frame.stackTrace).stackTraceToString())
+      } else {
+        val level = frame.height - breakpointFrame.height
+        val indent = "  ".repeat(level)
+        // println("$indent<- ${method.clazz.name}.${method.name} (...)")
+      }
+    }
 }
 
-fun Any?.toKotlinRepr(): String = when (this) {
-  null -> "null"
-  is CharSequence -> {
-    val unquoted = this.toString()
-      .replace("\\", "\\\\")
-      .replace("\n", "\\n")
-      .replace("\t", "\\t")
-      .replace("\b", "\\b")
-      .replace("\r", "\\r")
-      .replace("\"", "\\\"")
-      .replace("\$", "\\\$")
-    "\"" + unquoted + "\""
+fun Any?.toKotlinRepr(): String =
+  when (this) {
+    null -> "null"
+    is CharSequence -> {
+      val unquoted =
+        this.toString()
+          .replace("\\", "\\\\")
+          .replace("\n", "\\n")
+          .replace("\t", "\\t")
+          .replace("\b", "\\b")
+          .replace("\r", "\\r")
+          .replace("\"", "\\\"")
+          .replace("\$", "\\\$")
+      "\"" + unquoted + "\""
+    }
+    is List<*> -> this.toKotlinListRepr() // Separate function for lists
+    else -> this.toString()
   }
-  is List<*> -> this.toKotlinListRepr()  // Separate function for lists
-  else -> this.toString()
-}
 
 fun List<*>.toKotlinListRepr(): String {
   val reprElements = this.joinToString(separator = ", ") { it.toKotlinRepr() }
@@ -655,12 +691,16 @@ fun inspect(clazz: Class<*>) {
   eprintln("Inspecting ${clazz.name}")
   val staticMethods = clazz.declaredMethods.asList().sortedBy { it.name }
   val staticFields = clazz.declaredFields.asList().sortedBy { it.name }
-  val methods = (clazz.declaredMethods.asList() + clazz.methods.asList()).distinct().sortedBy { it.name }
-  val fields = (clazz.declaredFields.asList() + clazz.fields.asList()).distinct().sortedBy { it.name }
-  staticFields.forEach{eprintln("static ${it.name}: ${it.type}") }
-  staticMethods.forEach{eprintln("static ${it.name}: (${it.parameterTypes.asList()}): ${it.returnType}") }
-  fields.forEach{eprintln("${it.name}: ${it.type}") }
-  methods.forEach{eprintln("${it.name}: (${it.parameterTypes.asList()}): ${it.returnType}") }
+  val methods =
+    (clazz.declaredMethods.asList() + clazz.methods.asList()).distinct().sortedBy { it.name }
+  val fields =
+    (clazz.declaredFields.asList() + clazz.fields.asList()).distinct().sortedBy { it.name }
+  staticFields.forEach { eprintln("static ${it.name}: ${it.type}") }
+  staticMethods.forEach {
+    eprintln("static ${it.name}: (${it.parameterTypes.asList()}): ${it.returnType}")
+  }
+  fields.forEach { eprintln("${it.name}: ${it.type}") }
+  methods.forEach { eprintln("${it.name}: (${it.parameterTypes.asList()}): ${it.returnType}") }
   eprintln("Done")
 }
 
@@ -679,4 +719,3 @@ fun <T> highlander(collection: Collection<T>): T {
 
   return collection.first()
 }
-

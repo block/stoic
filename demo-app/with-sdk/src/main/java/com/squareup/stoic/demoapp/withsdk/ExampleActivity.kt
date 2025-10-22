@@ -1,11 +1,11 @@
 package com.squareup.stoic.demoapp.withsdk
 
-import android.support.v7.app.AppCompatActivity
 import android.annotation.SuppressLint
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.support.v7.app.AppCompatActivity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
@@ -14,8 +14,8 @@ import android.widget.TextView
 import com.squareup.stoic.demoapp.withsdk.databinding.ActivityExampleBinding
 
 /**
- * An example full-screen activity that shows and hides the system UI (i.e.
- * status bar and navigation/system bar) with user interaction.
+ * An example full-screen activity that shows and hides the system UI (i.e. status bar and
+ * navigation/system bar) with user interaction.
  */
 class ExampleActivity : AppCompatActivity() {
 
@@ -24,7 +24,8 @@ class ExampleActivity : AppCompatActivity() {
   private lateinit var fullscreenContentControls: LinearLayout
   private val hideHandler = Handler(Looper.myLooper()!!)
 
-  // Suppress DEPRECATION: systemUiVisibility is deprecated in API 30+, but required for API 26-29 support
+  // Suppress DEPRECATION: systemUiVisibility is deprecated in API 30+, but required for API 26-29
+  // support
   @Suppress("DEPRECATION")
   @SuppressLint("InlinedApi")
   private val hidePart2Runnable = Runnable {
@@ -56,22 +57,22 @@ class ExampleActivity : AppCompatActivity() {
   private val hideRunnable = Runnable { hide() }
 
   /**
-   * Touch listener to use for in-layout UI controls to delay hiding the
-   * system UI. This is to prevent the jarring behavior of controls going away
-   * while interacting with activity UI.
+   * Touch listener to use for in-layout UI controls to delay hiding the system UI. This is to
+   * prevent the jarring behavior of controls going away while interacting with activity UI.
    */
-  private val delayHideTouchListener = View.OnTouchListener { view, motionEvent ->
-    when (motionEvent.action) {
-      MotionEvent.ACTION_DOWN -> if (AUTO_HIDE) {
-        delayedHide(AUTO_HIDE_DELAY_MILLIS)
-      }
+  private val delayHideTouchListener =
+    View.OnTouchListener { view, motionEvent ->
+      when (motionEvent.action) {
+        MotionEvent.ACTION_DOWN ->
+          if (AUTO_HIDE) {
+            delayedHide(AUTO_HIDE_DELAY_MILLIS)
+          }
 
-      MotionEvent.ACTION_UP -> view.performClick()
-      else -> {
+        MotionEvent.ACTION_UP -> view.performClick()
+        else -> {}
       }
+      false
     }
-    false
-  }
 
   @SuppressLint("ClickableViewAccessibility")
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,7 +125,8 @@ class ExampleActivity : AppCompatActivity() {
     hideHandler.postDelayed(hidePart2Runnable, UI_ANIMATION_DELAY.toLong())
   }
 
-  // Suppress DEPRECATION: systemUiVisibility is deprecated in API 30+, but required for API 26-29 support
+  // Suppress DEPRECATION: systemUiVisibility is deprecated in API 30+, but required for API 26-29
+  // support
   @Suppress("DEPRECATION")
   private fun show() {
     // Show the system bar
@@ -134,8 +136,7 @@ class ExampleActivity : AppCompatActivity() {
       )
     } else {
       fullscreenContent.systemUiVisibility =
-        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-          View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
     }
     isFullscreen = true
 
@@ -144,10 +145,7 @@ class ExampleActivity : AppCompatActivity() {
     hideHandler.postDelayed(showPart2Runnable, UI_ANIMATION_DELAY.toLong())
   }
 
-  /**
-   * Schedules a call to hide() in [delayMillis], canceling any
-   * previously scheduled calls.
-   */
+  /** Schedules a call to hide() in [delayMillis], canceling any previously scheduled calls. */
   private fun delayedHide(delayMillis: Int) {
     hideHandler.removeCallbacks(hideRunnable)
     hideHandler.postDelayed(hideRunnable, delayMillis.toLong())
@@ -155,20 +153,20 @@ class ExampleActivity : AppCompatActivity() {
 
   companion object {
     /**
-     * Whether or not the system UI should be auto-hidden after
-     * [AUTO_HIDE_DELAY_MILLIS] milliseconds.
+     * Whether or not the system UI should be auto-hidden after [AUTO_HIDE_DELAY_MILLIS]
+     * milliseconds.
      */
     private const val AUTO_HIDE = true
 
     /**
-     * If [AUTO_HIDE] is set, the number of milliseconds to wait after
-     * user interaction before hiding the system UI.
+     * If [AUTO_HIDE] is set, the number of milliseconds to wait after user interaction before
+     * hiding the system UI.
      */
     private const val AUTO_HIDE_DELAY_MILLIS = 3000
 
     /**
-     * Some older devices needs a small delay between UI widget updates
-     * and a change of the status and navigation bar.
+     * Some older devices needs a small delay between UI widget updates and a change of the status
+     * and navigation bar.
      */
     private const val UI_ANIMATION_DELAY = 300
   }

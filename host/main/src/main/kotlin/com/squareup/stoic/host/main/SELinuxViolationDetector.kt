@@ -2,11 +2,8 @@ package com.squareup.stoic.host.main
 
 import com.squareup.stoic.common.logDebug
 import com.squareup.stoic.common.logError
-import com.squareup.stoic.host.resolvedProcessBuilder
 import com.squareup.stoic.host.runCommand
-import java.io.File
 import java.io.IOException
-import java.lang.ProcessBuilder.Redirect
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Collections
 import kotlin.concurrent.thread
@@ -15,18 +12,20 @@ import kotlin.concurrent.thread
 class SELinuxViolationDetector {
   private val selinuxViolations = Collections.synchronizedList(mutableListOf<String>())
   private var logcatProcess: Process? = null
+
   fun start(pkg: String) {
     logcatProcess = ProcessBuilder(listOf("logcat", "-T", "1", "*:w")).start()
 
     val logcatReader = logcatProcess!!.inputStream.bufferedReader(UTF_8)
     thread {
       while (true) {
-        val line = try {
-          logcatReader.readLine()
-        } catch (e: IOException) {
-          // Probably we killed the logcat process
-          break
-        }
+        val line =
+          try {
+            logcatReader.readLine()
+          } catch (e: IOException) {
+            // Probably we killed the logcat process
+            break
+          }
 
         if (line == null) {
           // Usually this means that we hit the timeout and we killed the logcat process
@@ -35,7 +34,9 @@ class SELinuxViolationDetector {
           break
         }
 
-        if ("^.*avc: denied.*permissive=0.*app=${pkg.replace(".", "\\.")}\$".toRegex().matches(line)) {
+        if (
+          "^.*avc: denied.*permissive=0.*app=${pkg.replace(".", "\\.")}\$".toRegex().matches(line)
+        ) {
           logDebug { line }
           selinuxViolations.add(line)
         }
@@ -49,7 +50,7 @@ class SELinuxViolationDetector {
 
   fun stop() {
     logcatProcess?.destroyForcibly()
-}
+  }
 
   fun showViolations() {
     // https://wiki.sqprod.co/display/TREX/How+to%3A+Fix+SELinux+Errors
@@ -72,8 +73,5 @@ class SELinuxViolationDetector {
       // TODO: better diagnostics of what exactly SELinux is disallowing
       logError { "Your device's SELinux configuration may be incompatible with JVMTI." }
     }
-
   }
-
-
 }

@@ -2,16 +2,12 @@
 
 package com.squareup.stoic.host.main
 
+import com.squareup.stoic.apk.jarToApkPreserveManifest
 import com.squareup.stoic.common.LogLevel
 import com.squareup.stoic.common.logBlock
 import com.squareup.stoic.common.logInfo
 import com.squareup.stoic.host.FileWithSha
 import com.squareup.stoic.host.Sha
-import com.squareup.stoic.apk.jarToApkPreserveManifest
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToStream
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -22,6 +18,10 @@ import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToStream
 
 /**
  * Cache of APK files.
@@ -32,7 +32,7 @@ import kotlin.io.path.readText
 object ApkCache {
   private const val VERSION = 2
 
-  /** Root directory (${java.io.tmpdir}/dex_cache) **/
+  /** Root directory (${java.io.tmpdir}/dex_cache) * */
   private val cacheRoot: Path =
     Paths.get(System.getProperty("java.io.tmpdir"), ".stoic/cache/apk-$VERSION")
 
@@ -42,7 +42,9 @@ object ApkCache {
 
   fun resolve(jarOrApkFile: File): FileWithSha {
     val keyDir = computeKeyDir(jarOrApkFile)
-    get(keyDir, jarOrApkFile)?.let { return it }
+    get(keyDir, jarOrApkFile)?.let {
+      return it
+    }
     logInfo { "ApkCache.get failed - regenerating sha/apk" }
 
     val apk = computeCachedApkPath(keyDir, jarOrApkFile)
@@ -67,8 +69,8 @@ object ApkCache {
   }
 
   /**
-   * Return the cached apk for [jarOrApkFile] if present *and* still valid.
-   * Returns `null` on cache miss.
+   * Return the cached apk for [jarOrApkFile] if present *and* still valid. Returns `null` on cache
+   * miss.
    */
   private fun get(keyDir: Path, jarOrApkFile: File): FileWithSha? {
     val metaFile = keyDir.resolve("meta")
@@ -108,7 +110,7 @@ object ApkCache {
           posixCTime = posixCTime,
           apkSha256Sum = apkSha256Sum,
         ),
-        it
+        it,
       )
     }
 
@@ -129,8 +131,4 @@ object ApkCache {
 }
 
 @Serializable
-data class ApkCacheMeta(
-  val canonicalPath: String,
-  val posixCTime: Long,
-  val apkSha256Sum: String,
-)
+data class ApkCacheMeta(val canonicalPath: String, val posixCTime: Long, val apkSha256Sum: String)

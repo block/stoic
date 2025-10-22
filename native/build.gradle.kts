@@ -8,8 +8,8 @@ val syncDir = distributionsDir.resolve("sync")
 // Read android_ndk_version from gradle.properties
 val androidNdkVersion = rootProject.providers.gradleProperty("android.ndkVersion").get()
 
-val androidHome = System.getenv("ANDROID_HOME")
-    ?: error("ANDROID_HOME environment variable not set")
+val androidHome =
+  System.getenv("ANDROID_HOME") ?: error("ANDROID_HOME environment variable not set")
 
 val androidNdk = "$androidHome/ndk/$androidNdkVersion"
 
@@ -17,37 +17,31 @@ val androidNdk = "$androidHome/ndk/$androidNdkVersion"
 val androidArchitectures = listOf("arm64-v8a", "x86_64")
 
 tasks.register<Exec>("buildNative") {
-    workingDir = nativeDir
-    commandLine("make", "-j16", "all")
+  workingDir = nativeDir
+  commandLine("make", "-j16", "all")
 
-    environment("ANDROID_NDK", androidNdk)
-    environment("OUT_DIR", distributionsDir.absolutePath)
+  environment("ANDROID_NDK", androidNdk)
+  environment("OUT_DIR", distributionsDir.absolutePath)
 
-    inputs.files(
-        fileTree(nativeDir) {
-            include("*.cc", "*.h", "Makefile*")
-        }
+  inputs.files(fileTree(nativeDir) { include("*.cc", "*.h", "Makefile*") })
+
+  // Output files for each architecture
+  androidArchitectures.forEach { arch ->
+    outputs.file(syncDir.resolve("stoic/$arch/stoic-jvmti-agent.so"))
+  }
+
+  doFirst {
+    println(
+      "Building native JVMTI agent for architectures: ${androidArchitectures.joinToString(", ")}"
     )
-
-    // Output files for each architecture
-    androidArchitectures.forEach { arch ->
-        outputs.file(syncDir.resolve("stoic/$arch/stoic-jvmti-agent.so"))
-    }
-
-    doFirst {
-        println("Building native JVMTI agent for architectures: ${androidArchitectures.joinToString(", ")}")
-        println("Using NDK: $androidNdk")
-    }
+    println("Using NDK: $androidNdk")
+  }
 }
 
-tasks.register<Delete>("clean") {
-    delete(distributionsDir)
-}
+tasks.register<Delete>("clean") { delete(distributionsDir) }
 
 // Make the native build part of the default build
-tasks.register("assemble") {
-    dependsOn("buildNative")
-}
+tasks.register("assemble") { dependsOn("buildNative") }
 
 // Default task
 defaultTasks("assemble")

@@ -1,6 +1,7 @@
 package com.squareup.stoic.jvmti
 
-// No error has occurred. This is the error code that is returned on successful completion of the function.
+// No error has occurred. This is the error code that is returned on successful completion of the
+// function.
 const val JVMTI_ERROR_NONE = 0
 
 // Pointer is unexpectedly NULL.
@@ -12,13 +13,15 @@ const val JVMTI_ERROR_OUT_OF_MEMORY = 110
 // The desired functionality has not been enabled in this virtual machine.
 const val JVMTI_ERROR_ACCESS_DENIED = 111
 
-// The thread being used to call this function is not attached to the virtual machine. Calls must be made from attached threads. See AttachCurrentThread in the JNI invocation API.
+// The thread being used to call this function is not attached to the virtual machine. Calls must be
+// made from attached threads. See AttachCurrentThread in the JNI invocation API.
 const val JVMTI_ERROR_UNATTACHED_THREAD = 115
 
 // The JVM TI environment provided is no longer connected or is not an environment.
 const val JVMTI_ERROR_INVALID_ENVIRONMENT = 116
 
-// The desired functionality is not available in the current phase. Always returned if the virtual machine has completed running.
+// The desired functionality is not available in the current phase. Always returned if the virtual
+// machine has completed running.
 const val JVMTI_ERROR_WRONG_PHASE = 112
 
 // An unexpected internal error has occurred.
@@ -26,7 +29,8 @@ const val JVMTI_ERROR_INTERNAL = 113
 
 //
 // Function Specific Required Errors
-// The following errors are returned by some JVM TI functions and must be returned by the implementation when the condition occurs.
+// The following errors are returned by some JVM TI functions and must be returned by the
+// implementation when the condition occurs.
 //
 
 // Invalid priority.
@@ -38,7 +42,8 @@ const val JVMTI_ERROR_THREAD_NOT_SUSPENDED = 13
 // Thread already suspended.
 const val JVMTI_ERROR_THREAD_SUSPENDED = 14
 
-// This operation requires the thread to be alive--that is, it must be started and not yet have died.
+// This operation requires the thread to be alive--that is, it must be started and not yet have
+// died.
 const val JVMTI_ERROR_THREAD_NOT_ALIVE = 15
 
 // The class has been loaded but not yet prepared.
@@ -82,7 +87,9 @@ const val JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED = 106
 
 //
 // Function Specific Agent Errors
-// The following errors are returned by some JVM TI functions. They are returned in the event of invalid parameters passed by the agent or usage in an invalid context. An implementation is not required to detect these errors.
+// The following errors are returned by some JVM TI functions. They are returned in the event of
+// invalid parameters passed by the agent or usage in an invalid context. An implementation is not
+// required to detect these errors.
 //
 
 // The passed thread is not a valid thread.
@@ -130,7 +137,8 @@ const val JVMTI_ERROR_UNSUPPORTED_VERSION = 68
 // A new class file is malformed (the VM would return a ClassFormatError).
 const val JVMTI_ERROR_INVALID_CLASS_FORMAT = 60
 
-// The new class file definitions would lead to a circular definition (the VM would return a ClassCircularityError).
+// The new class file definitions would lead to a circular definition (the VM would return a
+// ClassCircularityError).
 const val JVMTI_ERROR_CIRCULAR_CLASS_DEFINITION = 61
 
 // A new class file would require adding a method.
@@ -142,7 +150,8 @@ const val JVMTI_ERROR_UNSUPPORTED_REDEFINITION_SCHEMA_CHANGED = 64
 // The class bytes fail verification.
 const val JVMTI_ERROR_FAILS_VERIFICATION = 62
 
-// A direct superclass is different for the new class version, or the set of directly implemented interfaces is different.
+// A direct superclass is different for the new class version, or the set of directly implemented
+// interfaces is different.
 const val JVMTI_ERROR_UNSUPPORTED_REDEFINITION_HIERARCHY_CHANGED = 66
 
 // A new class version does not declare a method declared in the old class version.
@@ -154,7 +163,8 @@ const val JVMTI_ERROR_NAMES_DONT_MATCH = 69
 // A new class version has different modifiers.
 const val JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_MODIFIERS_CHANGED = 70
 
-// A method in the new class version has different modifiers than its counterpart in the old class version.
+// A method in the new class version has different modifiers than its counterpart in the old class
+// version.
 const val JVMTI_ERROR_UNSUPPORTED_REDEFINITION_METHOD_MODIFIERS_CHANGED = 71
 
 class JvmtiException(val errorCode: Int, desc: String) : Exception("$desc: $errorCode")

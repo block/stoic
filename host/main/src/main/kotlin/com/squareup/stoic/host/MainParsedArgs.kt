@@ -30,16 +30,19 @@ class MainParsedArgs(
             "--error" -> minLogLevel = ERROR
             "--log" -> {
               val level = args[++i]
-              minLogLevel = when {
-                level.toInt() == VERBOSE.level || level.equals("verbose", ignoreCase = true) -> VERBOSE
-                level.toInt() == DEBUG.level || level.equals("debug", ignoreCase = true) -> DEBUG
-                level.toInt() == INFO.level || level.equals("info", ignoreCase = true) -> INFO
-                level.toInt() == WARN.level || level.equals("warn", ignoreCase = true) -> WARN
-                level.toInt() == ERROR.level || level.equals("error", ignoreCase = true) -> ERROR
-                else -> throw IllegalArgumentException("Unrecognized log level: $level")
-              }
+              minLogLevel =
+                when {
+                  level.toInt() == VERBOSE.level || level.equals("verbose", ignoreCase = true) ->
+                    VERBOSE
+                  level.toInt() == DEBUG.level || level.equals("debug", ignoreCase = true) -> DEBUG
+                  level.toInt() == INFO.level || level.equals("info", ignoreCase = true) -> INFO
+                  level.toInt() == WARN.level || level.equals("warn", ignoreCase = true) -> WARN
+                  level.toInt() == ERROR.level || level.equals("error", ignoreCase = true) -> ERROR
+                  else -> throw IllegalArgumentException("Unrecognized log level: $level")
+                }
             }
-            "--package", "--pkg" -> {
+            "--package",
+            "--pkg" -> {
               // option with arg
               stoicArgs.add(arg)
               stoicArgs.add(args[++i])

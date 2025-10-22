@@ -8,16 +8,16 @@ import com.squareup.stoic.common.Failed
 import com.squareup.stoic.common.FailureCode
 import com.squareup.stoic.common.JvmtiAttachOptions
 import com.squareup.stoic.common.LoadPlugin
-import com.squareup.stoic.common.Succeeded
 import com.squareup.stoic.common.MessageReader
 import com.squareup.stoic.common.MessageWriter
 import com.squareup.stoic.common.PluginFinished
 import com.squareup.stoic.common.ProtocolError
 import com.squareup.stoic.common.STDERR
-import com.squareup.stoic.common.StartPlugin
 import com.squareup.stoic.common.STDIN
 import com.squareup.stoic.common.STDOUT
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
+import com.squareup.stoic.common.StartPlugin
+import com.squareup.stoic.common.Succeeded
 import com.squareup.stoic.common.VerifyProtocolVersion
 import com.squareup.stoic.common.logInfo
 import com.squareup.stoic.common.logVerbose
@@ -47,50 +47,59 @@ class StoicPluginServer(
   private val reader = MessageReader(DataInputStream(socketInputStream))
   private val embeddedPlugins: Map<String, Lazy<StoicPlugin>> = run {
     // Internal plugins prefixed with __ are hidden from --list output
-    val defaultPlugins = mapOf(
-      "__stoic-status" to lazy {
-        object : StoicPlugin {
-          override fun run(args: List<String>): Int {
-            stoic.stdout.println(
-              """
+    val defaultPlugins =
+      mapOf(
+        "__stoic-status" to
+          lazy {
+            object : StoicPlugin {
+              override fun run(args: List<String>): Int {
+                stoic.stdout.println(
+                  """
                 protocol-version: ${options.stoicProtocolVersion}
                 attached-via: ${options.attachedVia}
                 embedded-plugins: ${embeddedPlugins.keys}
-              """.trimIndent()
-            )
+              """
+                    .trimIndent()
+                )
 
-            return 0
-          }
-        }
-      },
-      "__stoic-list" to lazy {
-        object : StoicPlugin {
-          override fun run(args: List<String>): Int {
-            embeddedPlugins.keys.sorted().filter { !it.startsWith("__stoic-") }.forEach {
-              stoic.stdout.println(it)
+                return 0
+              }
             }
+          },
+        "__stoic-list" to
+          lazy {
+            object : StoicPlugin {
+              override fun run(args: List<String>): Int {
+                embeddedPlugins.keys
+                  .sorted()
+                  .filter { !it.startsWith("__stoic-") }
+                  .forEach { stoic.stdout.println(it) }
 
-            return 0
-          }
-        }
-      },
-      "__stoic-noop" to lazy {
-        object : StoicPlugin {
-          override fun run(args: List<String>): Int {
-            // This is used to ensure the server is running
-            return 0
-          }
-        }
-      },
-    )
+                return 0
+              }
+            }
+          },
+        "__stoic-noop" to
+          lazy {
+            object : StoicPlugin {
+              override fun run(args: List<String>): Int {
+                // This is used to ensure the server is running
+                return 0
+              }
+            }
+          },
+      )
     defaultPlugins + extraPlugins
   }
 
   init {
-    logVerbose { "constructed writer from ${writer.dataOutputStream} (underlying ${socketOutputStream})" }
-    logVerbose { "constructed reader from ${reader.dataInputStream} (underlying ${socketInputStream})" }
+    logVerbose {
+      "constructed writer from ${writer.dataOutputStream} (underlying ${socketOutputStream})"
+    }
+    logVerbose {
+      "constructed reader from ${reader.dataInputStream} (underlying ${socketInputStream})"
+    }
   }
-
 
   fun handleVersion() {
     val decodedMessage = reader.consumeNext()
@@ -101,20 +110,21 @@ class StoicPluginServer(
         decodedMessage.requestId,
         Failed(
           FailureCode.UNSPECIFIED.value,
-          "Version mismatch - expected $STOIC_PROTOCOL_VERSION, received ${payload.protocolVersion}"
-        )
+          "Version mismatch - expected $STOIC_PROTOCOL_VERSION, received ${payload.protocolVersion}",
+        ),
       )
       throw FailedOperationException()
     } else {
-      val msg = if (payload.stoicVersionName != StoicProperties.STOIC_VERSION_NAME) {
-        // This is normally fine, but if we forget to rev the protocol version when we make a
-        // breaking change it will cause problems. If we see a problem it's worth considering if
-        // there was a breaking change.
-        "version check succeeded but stoic version name doesn't match " +
-          "${payload.stoicVersionName} != ${StoicProperties.STOIC_VERSION_NAME}"
-      } else {
-        "version check succeeded and stoic version name matches: ${StoicProperties.STOIC_VERSION_NAME}"
-      }
+      val msg =
+        if (payload.stoicVersionName != StoicProperties.STOIC_VERSION_NAME) {
+          // This is normally fine, but if we forget to rev the protocol version when we make a
+          // breaking change it will cause problems. If we see a problem it's worth considering if
+          // there was a breaking change.
+          "version check succeeded but stoic version name doesn't match " +
+            "${payload.stoicVersionName} != ${StoicProperties.STOIC_VERSION_NAME}"
+        } else {
+          "version check succeeded and stoic version name matches: ${StoicProperties.STOIC_VERSION_NAME}"
+        }
       logInfo { msg }
       writer.writeResponse(decodedMessage.requestId, Succeeded(msg))
     }
@@ -140,9 +150,7 @@ class StoicPluginServer(
     }
   }
 
-  /**
-   * Returns true for success, false for failure
-   */
+  /** Returns true for success, false for failure */
   fun handleStartPlugin(): Boolean {
     val startPluginRequestId: Int
     val startPlugin: StartPlugin
@@ -156,85 +164,85 @@ class StoicPluginServer(
 
     val oldClassLoader = Thread.currentThread().contextClassLoader
     try {
-      val plugin = if (startPlugin.pluginSha != null) {
-        val parentClassLoader = StoicPluginServer::class.java.classLoader
-        val pluginDir = "$stoicDir/plugin-by-sha/${startPlugin.pluginSha}"
-        val pluginApk = File("$pluginDir/${startPlugin.pluginName}.apk")
-        if (!pluginApk.exists()) {
-          writer.writeResponse(
-            startPluginRequestId,
-            Failed(
-              FailureCode.PLUGIN_MISSING.value,
-              "$pluginApk not loaded"
+      val plugin =
+        if (startPlugin.pluginSha != null) {
+          val parentClassLoader = StoicPluginServer::class.java.classLoader
+          val pluginDir = "$stoicDir/plugin-by-sha/${startPlugin.pluginSha}"
+          val pluginApk = File("$pluginDir/${startPlugin.pluginName}.apk")
+          if (!pluginApk.exists()) {
+            writer.writeResponse(
+              startPluginRequestId,
+              Failed(FailureCode.PLUGIN_MISSING.value, "$pluginApk not loaded"),
             )
-          )
-          return false
-        }
+            return false
+          }
 
-        val dexoutDir = File("$pluginDir/${startPlugin.pluginName}-dexout")
-        dexoutDir.mkdirs()
-        Log.d("stoic", "Making classLoader: (pluginApk: $pluginApk, dexoutDir: $dexoutDir)")
+          val dexoutDir = File("$pluginDir/${startPlugin.pluginName}-dexout")
+          dexoutDir.mkdirs()
+          Log.d("stoic", "Making classLoader: (pluginApk: $pluginApk, dexoutDir: $dexoutDir)")
 
-        // It's important to use canonical paths to avoid triggering
-        // https://github.com/square/stoic/issues/2
-        val classLoader = DexClassLoader(
-          pluginApk.canonicalPath,
-          dexoutDir.canonicalPath,
-          null,
-          parentClassLoader)
+          // It's important to use canonical paths to avoid triggering
+          // https://github.com/square/stoic/issues/2
+          val classLoader =
+            DexClassLoader(
+              pluginApk.canonicalPath,
+              dexoutDir.canonicalPath,
+              null,
+              parentClassLoader,
+            )
 
-        Log.d("stoic", "made classLoader: $classLoader (parent: $parentClassLoader)")
+          Log.d("stoic", "made classLoader: $classLoader (parent: $parentClassLoader)")
 
-        // TODO: It'd be nice to allow people to follow the Java convention of declaring a main
-        //   method in the manifest, and then insert a StoicMainKt wrapper in the apk (or even
-        //   insert the manifest into the apk)
-        val pluginMainClass = classLoader.loadClass("MainKt")
-        Log.d("stoic", "loaded class: $pluginMainClass via ${pluginMainClass.classLoader}")
-        val args = startPlugin.pluginArgs.toTypedArray()
-        val pluginMain = pluginMainClass.getDeclaredMethod("main", args.javaClass)
+          // TODO: It'd be nice to allow people to follow the Java convention of declaring a main
+          //   method in the manifest, and then insert a StoicMainKt wrapper in the apk (or even
+          //   insert the manifest into the apk)
+          val pluginMainClass = classLoader.loadClass("MainKt")
+          Log.d("stoic", "loaded class: $pluginMainClass via ${pluginMainClass.classLoader}")
+          val args = startPlugin.pluginArgs.toTypedArray()
+          val pluginMain = pluginMainClass.getDeclaredMethod("main", args.javaClass)
 
-        // Set the context classloader so plugin code can load classes from its own JAR
-        Thread.currentThread().contextClassLoader = classLoader
+          // Set the context classloader so plugin code can load classes from its own JAR
+          Thread.currentThread().contextClassLoader = classLoader
 
-        object: StoicPlugin {
-          override fun run(args: List<String>): Int {
-            return try {
-              pluginMain.invoke(null, args.toTypedArray())
-              0
-            } catch (e: InvocationTargetException) {
-              Log.e("stoic", "plugin crashed", e)
-              val targetException = e.targetException
-              if (targetException !is ExitCodeException) {
-                targetException.printStackTrace(stoic.stderr)
+          object : StoicPlugin {
+            override fun run(args: List<String>): Int {
+              return try {
+                pluginMain.invoke(null, args.toTypedArray())
+                0
+              } catch (e: InvocationTargetException) {
+                Log.e("stoic", "plugin crashed", e)
+                val targetException = e.targetException
+                if (targetException !is ExitCodeException) {
+                  targetException.printStackTrace(stoic.stderr)
+                  1
+                } else {
+                  targetException.code
+                }
+              } catch (e: ReflectiveOperationException) {
+                Log.e("stoic", "problem starting plugin", e)
+                e.printStackTrace(stoic.stderr)
                 1
-              } else {
-                targetException.code
               }
-            } catch (e: ReflectiveOperationException) {
-              Log.e("stoic", "problem starting plugin", e)
-              e.printStackTrace(stoic.stderr)
-              1
             }
           }
-        }
-      } else if (startPlugin.pluginName != null) {
-        val p = embeddedPlugins[startPlugin.pluginName]?.value
-        if (p == null) {
-          val msg = "No embedded plugin named: ${startPlugin.pluginName}"
-          Log.i("stoic", msg)
-          writer.writeResponse(
-            startPluginRequestId,
-            Failed(FailureCode.PLUGIN_MISSING.value, msg)
-          )
-          return false
+        } else if (startPlugin.pluginName != null) {
+          val p = embeddedPlugins[startPlugin.pluginName]?.value
+          if (p == null) {
+            val msg = "No embedded plugin named: ${startPlugin.pluginName}"
+            Log.i("stoic", msg)
+            writer.writeResponse(
+              startPluginRequestId,
+              Failed(FailureCode.PLUGIN_MISSING.value, msg),
+            )
+            return false
+          } else {
+            p
+          }
         } else {
-          p
+          throw IllegalArgumentException(
+            "At least one of pluginName/pluginSha must be specified: $startPlugin"
+          )
         }
-      } else {
-        throw IllegalArgumentException(
-          "At least one of pluginName/pluginSha must be specified: $startPlugin"
-        )
-      }
 
       // Plugin may write to stdout/stderr
       writer.openStdoutForWriting()
@@ -244,26 +252,26 @@ class StoicPluginServer(
       val stdin = PipedInputStream(stdinOutPipe)
       val stdout = PrintStream(MessageWriterOutputStream(STDOUT, writer))
       val stderr = PrintStream(MessageWriterOutputStream(STDERR, writer))
-      val pluginStoic = Stoic(
-        Thread.currentThread().contextClassLoader,
-        startPlugin.env, stdin, stdout, stderr
-      )
+      val pluginStoic =
+        Stoic(Thread.currentThread().contextClassLoader, startPlugin.env, stdin, stdout, stderr)
 
       writer.writeResponse(startPluginRequestId, Succeeded("Plugin started"))
 
       var exitCode: Int
       val t = thread {
-        exitCode = pluginStoic.callWith {
-          // Run plugin on main thread to ensure thread-safe execution
-          // Use a mutable variable to capture the return value from runOnMainLooper
-          var result = -1
-          pluginStoic.runOnMainLooper(timeoutMs = 5000) {
-            result = plugin.run(startPlugin.pluginArgs)
+        exitCode =
+          pluginStoic.callWith {
+            // Run plugin on main thread to ensure thread-safe execution
+            // Use a mutable variable to capture the return value from runOnMainLooper
+            var result = -1
+            pluginStoic.runOnMainLooper(timeoutMs = 5000) {
+              result = plugin.run(startPlugin.pluginArgs)
+            }
+            result
           }
-          result
-        }
 
-        // We write PluginFinished to signal the client to send StreamClosed(STDIN), which signals us
+        // We write PluginFinished to signal the client to send StreamClosed(STDIN), which signals
+        // us
         // to stop pumping messages
         writer.writeOneWay(PluginFinished(exitCode))
       }
@@ -274,7 +282,9 @@ class StoicPluginServer(
         val requestId = decodedMessage.requestId
         when (payload) {
           is ByteArray -> {
-            if (requestId != STDIN) { throw IllegalArgumentException("Unexpected stream id: $requestId") }
+            if (requestId != STDIN) {
+              throw IllegalArgumentException("Unexpected stream id: $requestId")
+            }
             stdinOutPipe.write(payload)
             if (decodedMessage.isComplete) {
               logVerbose { "StreamClosed(STDIN)" }
@@ -282,7 +292,8 @@ class StoicPluginServer(
 
               // TODO: Really, we shouldn't break here - there might be other inputs to pump
               //   But, right now we don't surface those to clients, so it's okay.
-              //   If we didn't break here, we'd need an alternate way to end the pump when the plugin
+              //   If we didn't break here, we'd need an alternate way to end the pump when the
+              // plugin
               //   finished.
               break
             }
@@ -299,20 +310,22 @@ class StoicPluginServer(
 
   fun handleLoadPlugin() {
     val requestId: Int
-    val loadPlugin = reader.consumeNext().let {
-      check(it.isRequest)
-      check(!it.isComplete)
-      requestId = it.requestId
-      it.payload as LoadPlugin
-    }
-    val loadPluginBytes = reader.consumeNext().let {
-      check(it.isRequest)
+    val loadPlugin =
+      reader.consumeNext().let {
+        check(it.isRequest)
+        check(!it.isComplete)
+        requestId = it.requestId
+        it.payload as LoadPlugin
+      }
+    val loadPluginBytes =
+      reader.consumeNext().let {
+        check(it.isRequest)
 
-      // TODO: support streaming the plugin across multiple StreamIO messages
-      check(it.isComplete)
+        // TODO: support streaming the plugin across multiple StreamIO messages
+        check(it.isComplete)
 
-      it.payload as ByteArray
-    }
+        it.payload as ByteArray
+      }
 
     val pluginByShaDir = File("$stoicDir/plugin-by-sha/${loadPlugin.pluginSha}")
     if (pluginByShaDir.exists()) {

@@ -26,7 +26,8 @@ fun main(args: Array<String>) {
 
   // Release artifact URLs
   val githubReleaseUrl = "https://github.com/block/stoic/releases/tag/$releaseTag"
-  val pluginSdkUrl = "https://central.sonatype.com/artifact/com.squareup.stoic/plugin-sdk/$releaseVersion"
+  val pluginSdkUrl =
+    "https://central.sonatype.com/artifact/com.squareup.stoic/plugin-sdk/$releaseVersion"
   val appSdkUrl = "https://central.sonatype.com/artifact/com.squareup.stoic/app-sdk/$releaseVersion"
   val homebrewFormulaUrl = "https://github.com/block/homebrew-tap/blob/main/Formula/stoic.rb"
 
@@ -48,7 +49,8 @@ fun main(args: Array<String>) {
   println("    • Merge to main and bump version")
   println()
 
-  println("""
+  println(
+    """
     If you want to abandon the release, you can delete the artifacts directory with:
     % rm -r releases/$releaseVersion
 
@@ -59,7 +61,9 @@ fun main(args: Array<String>) {
     % git tag -d v$releaseVersion && git push origin --delete v$releaseVersion
 
 
-  """.trimIndent())
+  """
+      .trimIndent()
+  )
 
   val artifactsDir = stoicDir.resolve("releases/$releaseVersion")
 
@@ -76,7 +80,8 @@ fun main(args: Array<String>) {
     println("Completed: $step")
     stateFile.writeText(step.name)
   }
-  fun lastStep(): Step? = if (stateFile.exists()) Step.valueOf(stateFile.readText().trim()) else null
+  fun lastStep(): Step? =
+    if (stateFile.exists()) Step.valueOf(stateFile.readText().trim()) else null
   fun shouldRun(step: Step): Boolean {
     val done = lastStep()
     return done == null || step.ordinal > done.ordinal
@@ -108,9 +113,7 @@ fun main(args: Array<String>) {
     println()
   }
 
-  step(Step.SHELLCHECK) {
-    check(runCommand(listOf("test/shellcheck.sh"), stoicDir))
-  }
+  step(Step.SHELLCHECK) { check(runCommand(listOf("test/shellcheck.sh"), stoicDir)) }
 
   val releaseBranch = "release/$releaseVersion"
   step(Step.CREATE_BRANCH) {
@@ -118,15 +121,21 @@ fun main(args: Array<String>) {
     // modify the repo (without committing!) to help the release succeed
     ensureCleanGitRepo(stoicDir)
 
-    val branch = runCommandOutput(listOf("git", "rev-parse", "--abbrev-ref", "HEAD"), stoicDir).trim()
+    val branch =
+      runCommandOutput(listOf("git", "rev-parse", "--abbrev-ref", "HEAD"), stoicDir).trim()
     val normalized = branch.removePrefix("refs/").removePrefix("heads/").removePrefix("origin/")
     require(normalized == "main") { "Must run from main branch (currently on '$normalized')" }
 
     require(currentVersion.endsWith("-SNAPSHOT")) {
       "Current version must end in -SNAPSHOT (was '$currentVersion')"
     }
-    require(versionCodeFromVersionName(releaseVersion) == versionCodeFromVersionName(currentVersion) + 1)
-    require(versionCodeFromVersionName(postReleaseVersion) == versionCodeFromVersionName(releaseVersion) + 9)
+    require(
+      versionCodeFromVersionName(releaseVersion) == versionCodeFromVersionName(currentVersion) + 1
+    )
+    require(
+      versionCodeFromVersionName(postReleaseVersion) ==
+        versionCodeFromVersionName(releaseVersion) + 9
+    )
 
     println("Creating release branch: $releaseBranch")
     check(runCommand(listOf("git", "checkout", "-b", releaseBranch), stoicDir))
@@ -139,7 +148,8 @@ fun main(args: Array<String>) {
   val commitSha = getHeadSha(stoicDir)
 
   // Verify the commit message matches the expected release preparation commit
-  val commitMessage = runCommandOutput(listOf("git", "log", "-1", "--format=%s", commitSha), stoicDir).trim()
+  val commitMessage =
+    runCommandOutput(listOf("git", "log", "-1", "--format=%s", commitSha), stoicDir).trim()
   val expectedMessage = "Prepare $releaseVersion release"
   if (commitMessage != expectedMessage) {
     System.err.println("❌ Commit message mismatch!")
@@ -155,17 +165,43 @@ fun main(args: Array<String>) {
     val runId = waitForWorkflow("build", stoicDir, commitSha)
 
     println("Downloading build artifact...")
-    check(runCommand(listOf("gh", "run", "download", runId, "--repo", "block/stoic",
-      "-n", "stoic-release-tar-gz", "-D", artifactsDir.absolutePath), stoicDir))
+    check(
+      runCommand(
+        listOf(
+          "gh",
+          "run",
+          "download",
+          runId,
+          "--repo",
+          "block/stoic",
+          "-n",
+          "stoic-release-tar-gz",
+          "-D",
+          artifactsDir.absolutePath,
+        ),
+        stoicDir,
+      )
+    )
   }
 
   val extractedDir = artifactsDir.resolve("verify")
   step(Step.EXTRACT) {
     extractedDir.mkdirs()
     println("Extracting artifact to $extractedDir...")
-    check(runCommand(listOf("tar", "-xzf",
-      "${artifactsDir.resolve("stoic-release.tar.gz")}",
-      "-C", extractedDir.absolutePath, "--strip-components", "1"), stoicDir))
+    check(
+      runCommand(
+        listOf(
+          "tar",
+          "-xzf",
+          "${artifactsDir.resolve("stoic-release.tar.gz")}",
+          "-C",
+          extractedDir.absolutePath,
+          "--strip-components",
+          "1",
+        ),
+        stoicDir,
+      )
+    )
   }
 
   val binPath = extractedDir.resolve("bin/darwin-arm64").absolutePath
@@ -187,7 +223,8 @@ fun main(args: Array<String>) {
     // We need to run the command through `sh -c` to force executable
     // resolution to take PATH into account.
     println("Verifying stoic version...")
-    val versionOutput = runCommandOutput(listOf("sh", "-c", "stoic --version"), stoicDir, env).trim()
+    val versionOutput =
+      runCommandOutput(listOf("sh", "-c", "stoic --version"), stoicDir, env).trim()
     println("stoic --version: $versionOutput")
     if (!versionOutput.contains(releaseVersion)) {
       System.err.println("❌ Version mismatch! Expected $releaseVersion but got: $versionOutput")
@@ -207,7 +244,9 @@ fun main(args: Array<String>) {
   // release to our homebrew-tap separately within this script.
   step(Step.TAG_RELEASE) {
     println("Tagging release as $releaseTag")
-    check(runCommand(listOf("git", "tag", "-a", releaseTag, "-m", "Release $releaseVersion"), stoicDir))
+    check(
+      runCommand(listOf("git", "tag", "-a", releaseTag, "-m", "Release $releaseVersion"), stoicDir)
+    )
     check(runCommand(listOf("git", "push", "origin", releaseTag), stoicDir))
   }
 
@@ -220,7 +259,9 @@ fun main(args: Array<String>) {
     println("  Maven Central (plugin-sdk): $pluginSdkUrl")
     println("  Maven Central (app-sdk): $appSdkUrl")
     println()
-    println("Note: Maven Central artifacts may take up to 30 minutes to become available for download.")
+    println(
+      "Note: Maven Central artifacts may take up to 30 minutes to become available for download."
+    )
   }
 
   step(Step.MERGE_MAIN) {
@@ -233,15 +274,29 @@ fun main(args: Array<String>) {
     println("Bumping version to post-release: $postReleaseVersion")
     versionFile.writeText("$postReleaseVersion\n")
     check(runCommand(listOf("git", "add", versionFile.path), stoicDir))
-    check(runCommand(listOf("git", "commit", "-m", "Start $postReleaseVersion development"), stoicDir))
+    check(
+      runCommand(listOf("git", "commit", "-m", "Start $postReleaseVersion development"), stoicDir)
+    )
     check(runCommand(listOf("git", "push", "origin", "main"), stoicDir))
   }
 
   step(Step.UPDATE_HOMEBREW) {
     println("Triggering Homebrew tap update for $releaseTag...")
-    check(runCommand(listOf("gh", "workflow", "run", "update-stoic.yaml",
-      "--repo", "block/homebrew-tap",
-      "--field", "tag=$releaseTag"), stoicDir))
+    check(
+      runCommand(
+        listOf(
+          "gh",
+          "workflow",
+          "run",
+          "update-stoic.yaml",
+          "--repo",
+          "block/homebrew-tap",
+          "--field",
+          "tag=$releaseTag",
+        ),
+        stoicDir,
+      )
+    )
 
     println("Waiting for Homebrew tap update workflow to complete...")
     // Get the latest commit SHA from homebrew-tap main branch to wait for the workflow
@@ -289,18 +344,19 @@ fun ensureCleanGitRepo(dir: File) {
 
 /** Run command, inheriting IO. */
 fun runCommand(cmd: List<String>, dir: File, extraEnv: Map<String, String> = emptyMap()): Boolean {
-  val pb = ProcessBuilder(cmd)
-    .directory(dir)
-    .inheritIO()
+  val pb = ProcessBuilder(cmd).directory(dir).inheritIO()
   pb.environment().putAll(extraEnv)
   val process = pb.start()
   return process.waitFor() == 0
 }
 
 /** Capture stdout from command. */
-fun runCommandOutput(cmd: List<String>, dir: File, extraEnv: Map<String, String> = emptyMap()): String {
-  val pb = ProcessBuilder(cmd)
-    .directory(dir)
+fun runCommandOutput(
+  cmd: List<String>,
+  dir: File,
+  extraEnv: Map<String, String> = emptyMap(),
+): String {
+  val pb = ProcessBuilder(cmd).directory(dir)
   pb.environment().putAll(extraEnv)
   val process = pb.start()
   val output = process.inputStream.bufferedReader().readText()
@@ -308,12 +364,11 @@ fun runCommandOutput(cmd: List<String>, dir: File, extraEnv: Map<String, String>
   return output
 }
 
-
 /**
  * Wait until a given workflow has completed successfully for the specified commit SHA.
  *
- * @param workflow  the workflow name (e.g., "build" or "release")
- * @param repoDir   local repo directory
+ * @param workflow the workflow name (e.g., "build" or "release")
+ * @param repoDir local repo directory
  * @param commitSha the commit to wait for
  * @param timeoutMinutes how long to wait before failing
  */
@@ -321,36 +376,50 @@ fun waitForWorkflow(
   workflow: String,
   repoDir: File,
   commitSha: String,
-  timeoutMinutes: Int = 40
+  timeoutMinutes: Int = 40,
 ): String {
-  val repo = runCommandOutput(
-    listOf("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"),
-    repoDir
-  ).trim()
+  val repo =
+    runCommandOutput(
+        listOf("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"),
+        repoDir,
+      )
+      .trim()
 
   val deadline = System.currentTimeMillis() + timeoutMinutes * 60_000L
   var runId: String? = null
 
   // The jq filter, written as a raw triple-quoted string for readability.
-  val jqFilter = """
+  val jqFilter =
+    """
     .[]
     | select(.headSha=="$commitSha") 
     | "\(.databaseId) \(.status) \(.conclusion)"
-  """.trimIndent()
+  """
+      .trimIndent()
 
   while (true) {
     // Ask gh to give only runs for this commit, already filtered by jq
-    val line = runCommandOutput(
-      listOf(
-        "gh", "run", "list",
-        "--repo", repo,
-        "--workflow", workflow,
-        "--json", "databaseId,headSha,status,conclusion",
-        "--jq", jqFilter,
-        "--limit", "50"
-      ),
-      repoDir
-    ).lines().firstOrNull { it.isNotBlank() }
+    val line =
+      runCommandOutput(
+          listOf(
+            "gh",
+            "run",
+            "list",
+            "--repo",
+            repo,
+            "--workflow",
+            workflow,
+            "--json",
+            "databaseId,headSha,status,conclusion",
+            "--jq",
+            jqFilter,
+            "--limit",
+            "50",
+          ),
+          repoDir,
+        )
+        .lines()
+        .firstOrNull { it.isNotBlank() }
 
     var runUrl: String? = null
     if (line != null) {
@@ -366,7 +435,9 @@ fun waitForWorkflow(
           return runId
         }
         status == "completed" && conclusion in listOf("failure", "cancelled", "timed_out") -> {
-          System.err.println("❌ Workflow '$workflow' failed for commit $commitSha (conclusion=$conclusion).")
+          System.err.println(
+            "❌ Workflow '$workflow' failed for commit $commitSha (conclusion=$conclusion)."
+          )
           println("See: $runUrl")
           exitProcess(1)
         }
@@ -374,7 +445,9 @@ fun waitForWorkflow(
     }
 
     if (System.currentTimeMillis() > deadline) {
-      System.err.println("❌ Timeout waiting for workflow '$workflow' to complete for commit $commitSha.")
+      System.err.println(
+        "❌ Timeout waiting for workflow '$workflow' to complete for commit $commitSha."
+      )
       runUrl?.let { println("See: $it") }
       exitProcess(1)
     }
@@ -389,19 +462,19 @@ fun getHeadSha(repoDir: File): String =
   runCommandOutput(listOf("git", "rev-parse", "HEAD"), repoDir).trim()
 
 /**
- * Wait for the most recent workflow run to complete in a different repository.
- * Used when we trigger a workflow but don't know the commit SHA in that repo.
+ * Wait for the most recent workflow run to complete in a different repository. Used when we trigger
+ * a workflow but don't know the commit SHA in that repo.
  *
- * @param workflow  the workflow name (e.g., "update-stoic.yaml")
- * @param repo      the repository in owner/name format (e.g., "block/homebrew-tap")
- * @param localDir  local directory to run commands from
+ * @param workflow the workflow name (e.g., "update-stoic.yaml")
+ * @param repo the repository in owner/name format (e.g., "block/homebrew-tap")
+ * @param localDir local directory to run commands from
  * @param timeoutMinutes how long to wait before failing
  */
 fun waitForWorkflowInRepo(
   workflow: String,
   repo: String,
   localDir: File,
-  timeoutMinutes: Int = 10
+  timeoutMinutes: Int = 10,
 ) {
   val deadline = System.currentTimeMillis() + timeoutMinutes * 60_000L
   var runId: String? = null
@@ -412,17 +485,26 @@ fun waitForWorkflowInRepo(
 
   while (true) {
     // Get the most recent workflow run
-    val line = runCommandOutput(
-      listOf(
-        "gh", "run", "list",
-        "--repo", repo,
-        "--workflow", workflow,
-        "--json", "databaseId,status,conclusion",
-        "--jq", """.[0] | "\(.databaseId) \(.status) \(.conclusion)"""",
-        "--limit", "1"
-      ),
-      localDir
-    ).trim()
+    val line =
+      runCommandOutput(
+          listOf(
+            "gh",
+            "run",
+            "list",
+            "--repo",
+            repo,
+            "--workflow",
+            workflow,
+            "--json",
+            "databaseId,status,conclusion",
+            "--jq",
+            """.[0] | "\(.databaseId) \(.status) \(.conclusion)"""",
+            "--limit",
+            "1",
+          ),
+          localDir,
+        )
+        .trim()
 
     if (line.isNotBlank()) {
       val parts = line.split(Regex("\\s+"))
@@ -479,5 +561,5 @@ private enum class Step {
   WAIT_RELEASE,
   MERGE_MAIN,
   BUMP_SNAPSHOT,
-  UPDATE_HOMEBREW
+  UPDATE_HOMEBREW,
 }

@@ -6,11 +6,11 @@ import android.util.Log
 import com.squareup.stoic.common.JvmtiAttachOptions
 import com.squareup.stoic.common.STOIC_PROTOCOL_VERSION
 import com.squareup.stoic.common.serverSocketName
-import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
 import kotlin.concurrent.thread
+import kotlinx.serialization.json.Json
 
 class StoicUnixDomainSocketServer {
   companion object {
@@ -19,11 +19,13 @@ class StoicUnixDomainSocketServer {
 
     fun ensureRunning(stoicDir: String, context: Context? = null) {
       synchronized(lock) {
-        if (isRunning) { return } else { isRunning = true }
-
-        thread(isDaemon = true, name = "stoic-uds-server") {
-          startServer(stoicDir, context)
+        if (isRunning) {
+          return
+        } else {
+          isRunning = true
         }
+
+        thread(isDaemon = true, name = "stoic-uds-server") { startServer(stoicDir, context) }
       }
     }
   }
@@ -32,13 +34,16 @@ class StoicUnixDomainSocketServer {
 private fun startServer(stoicDir: String, context: Context?) {
   try {
     Log.d("stoic", "stoicDir: $stoicDir")
-    val options = Json.decodeFromString(
-      JvmtiAttachOptions.serializer(),
-      File(optionsJsonFromStoicDir(stoicDir)).readText(UTF_8)
-    )
+    val options =
+      Json.decodeFromString(
+        JvmtiAttachOptions.serializer(),
+        File(optionsJsonFromStoicDir(stoicDir)).readText(UTF_8),
+      )
     Log.d("stoic", "options: $options")
     if (options.stoicProtocolVersion != STOIC_PROTOCOL_VERSION) {
-      throw Exception("Mismatched versions: ${options.stoicProtocolVersion} and $STOIC_PROTOCOL_VERSION")
+      throw Exception(
+        "Mismatched versions: ${options.stoicProtocolVersion} and $STOIC_PROTOCOL_VERSION"
+      )
     }
 
     // TODO: fix hack - get the pkg from something other than the dir
@@ -69,32 +74,34 @@ private fun startServer(stoicDir: String, context: Context?) {
       val socket = server.accept()
 
       Log.i("stoic", "received connection: $socket")
-      thread (name = "stoic-plugin") {
+      thread(name = "stoic-plugin") {
         try {
           // Load config from AndroidManifest
           // Get context either from the parameter (BroadcastReceiver path) or
           // via reflection (JVMTI path)
           val appContext = context?.applicationContext ?: retrieveApplicationContextViaReflection()
-          val embeddedPlugins = if (appContext != null) {
-            Log.d("stoic", "Loading Stoic config...")
-            // Run on main thread to ensure thread-safe initialization
-            MainThreadExecutor.runOnMainThread {
-              StoicConfigLoader.loadConfig(appContext).getEmbeddedPlugins(appContext)
+          val embeddedPlugins =
+            if (appContext != null) {
+              Log.d("stoic", "Loading Stoic config...")
+              // Run on main thread to ensure thread-safe initialization
+              MainThreadExecutor.runOnMainThread {
+                StoicConfigLoader.loadConfig(appContext).getEmbeddedPlugins(appContext)
+              }
+            } else {
+              Log.w("stoic", "No context available - skipping config loading")
+              emptyMap()
             }
-          } else {
-            Log.w("stoic", "No context available - skipping config loading")
-            emptyMap()
-          }
 
           Log.d("stoic", "embedded plugins: ${embeddedPlugins.keys.joinToString(", ")}")
 
           StoicPluginServer(
-            stoicDir,
-            options,
-            embeddedPlugins,
-            socket.inputStream,
-            socket.outputStream
-          ).pluginMain()
+              stoicDir,
+              options,
+              embeddedPlugins,
+              socket.inputStream,
+              socket.outputStream,
+            )
+            .pluginMain()
         } catch (e: Throwable) {
           Log.e("stoic", "unexpected", e)
 
@@ -111,6 +118,6 @@ private fun startServer(stoicDir: String, context: Context?) {
     }
   } catch (e: Throwable) {
     Log.e("stoic", "unexpected", e)
-    throw e;
+    throw e
   }
 }

@@ -1,10 +1,10 @@
 package com.squareup.stoic.common
 
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.DataInputStream
-import java.io.DataOutputStream
 
 const val STOIC_PROTOCOL_VERSION = 5
 const val STDIN = 0
@@ -12,11 +12,7 @@ const val STDOUT = 1
 const val STDERR = 2
 
 // json-encoded and base64-encoded and sent as the JVMTI attach options
-@Serializable
-data class JvmtiAttachOptions(
-  val stoicProtocolVersion: Int,
-  val attachedVia: String,
-)
+@Serializable data class JvmtiAttachOptions(val stoicProtocolVersion: Int, val attachedVia: String)
 
 enum class MessageFlags(val code: Int) {
   // Indicates the message is a request, meaning it expects a response in return
@@ -56,10 +52,7 @@ enum class FailureCode(val value: Int) {
 }
 
 @Serializable
-data class VerifyProtocolVersion(
-  val protocolVersion: Int,
-  val stoicVersionName: String,
-)
+data class VerifyProtocolVersion(val protocolVersion: Int, val stoicVersionName: String)
 
 @Serializable
 data class StartPlugin(
@@ -67,33 +60,26 @@ data class StartPlugin(
   val pluginSha: String?,
   val pluginArgs: List<String>,
   val minLogLevel: String,
-  val env: Map<String, String>
+  val env: Map<String, String>,
 )
 
-@Serializable
-data class LoadPlugin(
-  val pluginName: String?,
-  val pluginSha: String,
-)
+@Serializable data class LoadPlugin(val pluginName: String?, val pluginSha: String)
 
-@Serializable
-data class PluginFinished(
-  val exitCode: Int,
-)
+@Serializable data class PluginFinished(val exitCode: Int)
 
-@Serializable
-data class Succeeded(val message: String)
+@Serializable data class Succeeded(val message: String)
 
-@Serializable
-data class Failed(val failureCode: Int, val message: String)
+@Serializable data class Failed(val failureCode: Int, val message: String)
 
-@Serializable
-data class ProtocolError(val message: String)
+@Serializable data class ProtocolError(val message: String)
 
 class RawMessage(val flags: Int, val requestId: Int, val payloadType: Int, val payload: ByteArray)
 
 fun DataOutputStream.writeRawMessage(
-  flags: Int, requestId: Int, payloadType: Int, payload: ByteArray
+  flags: Int,
+  requestId: Int,
+  payloadType: Int,
+  payload: ByteArray,
 ) {
   val size = payload.size + 12
   writeInt(size)
@@ -116,17 +102,22 @@ fun DataInputStream.readRawMessage(): RawMessage {
     flags = flags,
     requestId = requestId,
     payloadType = payloadType,
-    payload = payload
+    payload = payload,
   )
 }
 
 data class DecodedMessage<T>(val flags: Int, val requestId: Int, val payload: T) {
-  val isRequest get() = flags and MessageFlags.REQUEST.code != 0
-  val isResponse get() = flags and MessageFlags.RESPONSE.code != 0
-  val isComplete get() = flags and MessageFlags.COMPLETE.code != 0
+  val isRequest
+    get() = flags and MessageFlags.REQUEST.code != 0
+
+  val isResponse
+    get() = flags and MessageFlags.RESPONSE.code != 0
+
+  val isComplete
+    get() = flags and MessageFlags.COMPLETE.code != 0
 }
 
-class MessageWriter(val dataOutputStream : DataOutputStream) {
+class MessageWriter(val dataOutputStream: DataOutputStream) {
   val openRequestIds = mutableSetOf<Int>()
 
   // 0/1/2 are reserved for stdin/stdout/stderr
@@ -137,7 +128,6 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
     openRequestIds.add(requestId)
     return requestId
   }
-
 
   fun openStdinForWriting() {
     openRequestIds.add(STDIN)
@@ -157,13 +147,22 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
    * @param request the request content
    * @param requestId a unique ID identifying the request (or -1 to request an ID to be allocated)
    * @param isComplete false if additional request packets will be sent for the same request ID
-   *
    * @return the request ID
    */
   @Synchronized
   fun writeRequest(request: Any, requestId: Int = -1, isComplete: Boolean = true): Int {
-    val resolvedRequestId = if (requestId == -1) { allocateRequestId() } else { requestId }
-    val completeFlag = if (isComplete) { MessageFlags.COMPLETE.code } else { 0 }
+    val resolvedRequestId =
+      if (requestId == -1) {
+        allocateRequestId()
+      } else {
+        requestId
+      }
+    val completeFlag =
+      if (isComplete) {
+        MessageFlags.COMPLETE.code
+      } else {
+        0
+      }
     val flags = MessageFlags.REQUEST.code or completeFlag
     logVerbose { "writing request: $request, requestId=$resolvedRequestId, flags=$flags" }
     writeMessageLocked(flags, resolvedRequestId, request)
@@ -179,7 +178,12 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
    */
   @Synchronized
   fun writeResponse(requestId: Int, response: Any, isComplete: Boolean = true) {
-    val completeFlag = if (isComplete) { MessageFlags.COMPLETE.code } else { 0 }
+    val completeFlag =
+      if (isComplete) {
+        MessageFlags.COMPLETE.code
+      } else {
+        0
+      }
     val flags = MessageFlags.RESPONSE.code or completeFlag
     logVerbose { "writing response: $response, requestId=$requestId, flags=$flags" }
     writeMessageLocked(flags, requestId, response)
@@ -195,8 +199,18 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
    */
   @Synchronized
   fun writeOneWay(oneWay: Any, requestId: Int = -1, isComplete: Boolean = true) {
-    val resolvedRequestId = if (requestId == -1) { allocateRequestId() } else { requestId }
-    val completeFlag = if (isComplete) { MessageFlags.COMPLETE.code } else { 0 }
+    val resolvedRequestId =
+      if (requestId == -1) {
+        allocateRequestId()
+      } else {
+        requestId
+      }
+    val completeFlag =
+      if (isComplete) {
+        MessageFlags.COMPLETE.code
+      } else {
+        0
+      }
     logVerbose { "writing one-way: $oneWay, requestId=$resolvedRequestId, flags=$completeFlag" }
     writeMessageLocked(completeFlag, resolvedRequestId, oneWay)
   }
@@ -243,7 +257,8 @@ class MessageWriter(val dataOutputStream : DataOutputStream) {
       flags = flags,
       requestId = requestId,
       payloadType = payloadType,
-      payload = payload)
+      payload = payload,
+    )
   }
 }
 
@@ -266,30 +281,30 @@ class MessageReader(val dataInputStream: DataInputStream) {
 
   private fun readNextLocked(): DecodedMessage<Any> {
     val rawMessage = dataInputStream.readRawMessage()
-    val payload = when (rawMessage.payloadType) {
-      PayloadType.RAW.code -> rawMessage.payload
-      PayloadType.VERIFY_PROTOCOL_VERSION.code ->
-        Json.decodeFromString<VerifyProtocolVersion>(String(rawMessage.payload))
-      PayloadType.START_PLUGIN.code ->
-        Json.decodeFromString<StartPlugin>(String(rawMessage.payload))
-      PayloadType.LOAD_PLUGIN.code ->
-        Json.decodeFromString<LoadPlugin>(String(rawMessage.payload))
-      PayloadType.PLUGIN_FINISHED.code ->
-        Json.decodeFromString<PluginFinished>(String(rawMessage.payload))
-      PayloadType.SUCCEEDED.code ->
-        Json.decodeFromString<Succeeded>(String(rawMessage.payload))
-      PayloadType.FAILED.code ->
-        Json.decodeFromString<Failed>(String(rawMessage.payload))
-      PayloadType.PROTOCOL_ERROR.code ->
-        Json.decodeFromString<ProtocolError>(String(rawMessage.payload))
-      else -> throw IllegalArgumentException("Unknown payloadType: ${rawMessage.payloadType}")
-    }
+    val payload =
+      when (rawMessage.payloadType) {
+        PayloadType.RAW.code -> rawMessage.payload
+        PayloadType.VERIFY_PROTOCOL_VERSION.code ->
+          Json.decodeFromString<VerifyProtocolVersion>(String(rawMessage.payload))
+        PayloadType.START_PLUGIN.code ->
+          Json.decodeFromString<StartPlugin>(String(rawMessage.payload))
+        PayloadType.LOAD_PLUGIN.code ->
+          Json.decodeFromString<LoadPlugin>(String(rawMessage.payload))
+        PayloadType.PLUGIN_FINISHED.code ->
+          Json.decodeFromString<PluginFinished>(String(rawMessage.payload))
+        PayloadType.SUCCEEDED.code -> Json.decodeFromString<Succeeded>(String(rawMessage.payload))
+        PayloadType.FAILED.code -> Json.decodeFromString<Failed>(String(rawMessage.payload))
+        PayloadType.PROTOCOL_ERROR.code ->
+          Json.decodeFromString<ProtocolError>(String(rawMessage.payload))
+        else -> throw IllegalArgumentException("Unknown payloadType: ${rawMessage.payloadType}")
+      }
 
-    val msg = DecodedMessage<Any>(
-      flags = rawMessage.flags,
-      requestId = rawMessage.requestId,
-      payload = payload
-    )
+    val msg =
+      DecodedMessage<Any>(
+        flags = rawMessage.flags,
+        requestId = rawMessage.requestId,
+        payload = payload,
+      )
 
     logVerbose { "read $msg" }
 

@@ -1,4 +1,3 @@
 package com.squareup.stoic.jvmti
 
-class Event {
-}
+class Event {}
