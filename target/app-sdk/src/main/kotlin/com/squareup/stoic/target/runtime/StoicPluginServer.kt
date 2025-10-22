@@ -251,7 +251,13 @@ class StoicPluginServer(
       var exitCode = -1
       val t = thread {
         exitCode = pluginStoic.callWith {
-          plugin.run(startPlugin.pluginArgs)
+          // Run plugin on main thread to ensure thread-safe execution
+          // Use a mutable variable to capture the return value from runOnMainLooper
+          var result = -1
+          pluginStoic.runOnMainLooper(timeoutMs = 5000) {
+            result = plugin.run(startPlugin.pluginArgs)
+          }
+          result
         }
 
         // We write PluginFinished to signal the client to send StreamClosed(STDIN), which signals us

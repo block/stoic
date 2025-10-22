@@ -77,7 +77,10 @@ private fun startServer(stoicDir: String, context: Context?) {
           val appContext = context?.applicationContext ?: retrieveApplicationContextViaReflection()
           val embeddedPlugins = if (appContext != null) {
             Log.d("stoic", "Loading Stoic config...")
-            StoicConfigLoader.loadConfig(appContext).getEmbeddedPlugins(appContext)
+            // Run on main thread to ensure thread-safe initialization
+            MainThreadExecutor.runOnMainThread {
+              StoicConfigLoader.loadConfig(appContext).getEmbeddedPlugins(appContext)
+            }
           } else {
             Log.w("stoic", "No context available - skipping config loading")
             emptyMap()
