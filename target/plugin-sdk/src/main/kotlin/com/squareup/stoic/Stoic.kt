@@ -87,6 +87,7 @@ class StoicJvmti private constructor() {
 }
 
 class Stoic(
+  val contextClassLoader: ClassLoader?,
   val env: Map<String, String>,
   val stdin: InputStream,
   val stdout: PrintStream,
@@ -102,7 +103,9 @@ class Stoic(
   // This should be the only place in this file that uses internalStoic
   fun <T> callWith(forwardUncaught: Boolean = false, printErrors: Boolean = true, callable: Callable<T>): T {
     val oldStoic = internalStoic.get()
+    val oldClassLoader = Thread.currentThread().contextClassLoader
     internalStoic.set(this)
+    Thread.currentThread().contextClassLoader = contextClassLoader
     try {
       return callable.call()
     } catch (t: Throwable) {
@@ -122,6 +125,7 @@ class Stoic(
         throw t
       }
     } finally {
+      Thread.currentThread().contextClassLoader = oldClassLoader
       internalStoic.set(oldStoic)
     }
   }

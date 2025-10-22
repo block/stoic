@@ -244,7 +244,10 @@ class StoicPluginServer(
       val stdin = PipedInputStream(stdinOutPipe)
       val stdout = PrintStream(MessageWriterOutputStream(STDOUT, writer))
       val stderr = PrintStream(MessageWriterOutputStream(STDERR, writer))
-      val pluginStoic = Stoic(startPlugin.env, stdin, stdout, stderr)
+      val pluginStoic = Stoic(
+        Thread.currentThread().contextClassLoader,
+        startPlugin.env, stdin, stdout, stderr
+      )
 
       writer.writeResponse(startPluginRequestId, Succeeded("Plugin started"))
 
