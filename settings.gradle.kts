@@ -43,6 +43,8 @@ include("internal:tool:jar-to-apk-preserve-manifest")
 
 include("internal:tool:release")
 
+include("internal:test:protocol-version-client")
+
 include("native")
 
 include("integration-tests")
