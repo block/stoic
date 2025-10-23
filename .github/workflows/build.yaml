@@ -90,4 +90,4 @@ jobs:
             adb wait-for-device
             adb shell 'while [ -z "$(getprop sys.boot_completed)" ]; do sleep 1; done'
             echo "Emulator is ready"
-            PATH="$PWD/build/distributions/bin/jvm:$PATH" test/run-all-tests-on-connected-device.sh
+            STOIC_BIN="$PWD/build/distributions/bin/jvm/stoic" test/run-all-tests-on-connected-device.sh

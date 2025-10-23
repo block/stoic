@@ -1,7 +1,10 @@
 #!/bin/bash
 #set -x
 set -euo pipefail
+
+# Ensure we're using the correct stoic binary
 script_dir="$(dirname "$(readlink -f "$0")")"
+source "$script_dir/setup-stoic-path.sh"
 
 # Function to exit with line number
 abort() {

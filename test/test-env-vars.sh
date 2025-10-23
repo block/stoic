@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure we're using the correct stoic binary
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$script_dir/setup-stoic-path.sh"
+
 # Test STOIC_REQUIRED_VERSION and STOIC_ATTACH_VIA environment variables
 
 echo "Testing STOIC_REQUIRED_VERSION..."

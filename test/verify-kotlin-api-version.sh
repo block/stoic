@@ -5,6 +5,9 @@ set -euo pipefail
 # to ensure maximum compatibility with consumers.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Ensure we're using the correct stoic binary
+source "$SCRIPT_DIR/setup-stoic-path.sh"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Colors for output

@@ -25,12 +25,8 @@ else
   exit 1
 fi
 
-# Make sure stoic is built and up-to-date
-# This only builds the jvm version (not graal) because building graal is slow
-"$script_dir"/../bnr.sh --version
-
-# Make sure we're using the version we just built
-export PATH="$script_dir/../build/distributions/bin/jvm":$PATH
+# Ensure we're using the correct stoic binary (builds JVM version if needed)
+source "$script_dir/setup-stoic-path.sh"
 
 # Invoke the test script
 "$test_script"

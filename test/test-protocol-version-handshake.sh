@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure we're using the correct stoic binary
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$script_dir/setup-stoic-path.sh"
+
 # This test exists to ensure that the stoic server properly enforces the protocol version
 
 # Keep in sync with protocol-version-client source
@@ -10,7 +14,6 @@ exit_error=10
 
 stoic_protocol_version=5
 invalid_protocol_version=999
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(realpath "$script_dir/..")"
 stoic_version="$(cat "$repo_dir/prebuilt/STOIC_VERSION")"
 

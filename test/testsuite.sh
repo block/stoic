@@ -2,6 +2,9 @@
 set -euo pipefail
 script_dir="$(dirname "$(readlink -f "$0")")"
 
+# Ensure we're using the correct stoic binary
+source "$script_dir/setup-stoic-path.sh"
+
 # Build the test plugin
 cd "$script_dir/.."
 ./gradlew :test-plugin:apk --quiet --console=plain

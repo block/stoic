@@ -2,6 +2,10 @@
 #set -x
 set -euo pipefail
 script_dir="$(dirname "$(readlink -f "$0")")"
+
+# Ensure we're using the correct stoic binary
+source "$script_dir/setup-stoic-path.sh"
+
 cd $script_dir
 
 # In the past we'd occasionally fail when due to strange pidof behavior -

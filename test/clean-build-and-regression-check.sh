@@ -9,11 +9,9 @@ script_dir="$(dirname "$(readlink -f "$0")")"
 (cd "$script_dir/.." && ./gradlew clean)
 "$script_dir/../build.sh"
 
-export PATH="$script_dir/../build/distributions/bin/darwin-arm64:$PATH"
-if [ "$(realpath "$(which stoic)")" != "$(realpath "$script_dir/../build/distributions/bin/darwin-arm64/stoic")" ]; then
-  echo stoic resolves to "$(which stoic)" - not the one we just built
-  exit 1
-fi
+# Use the native build we just created
+export STOIC_BIN="$script_dir/../build/distributions/bin/darwin-arm64/stoic"
+source "$script_dir/setup-stoic-path.sh"
 
 "$script_dir"/shellcheck.sh
 "$script_dir"/emulator-tests.sh
