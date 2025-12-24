@@ -829,18 +829,13 @@ fun runPlugin(spec: PluginSpec, apkInfo: FileWithSha?): Int {
       }
 
     val proc =
-      adbProcessBuilder(
-          "shell",
-          shellEscapeCmd(
-            listOf(
-              "$stoicDeviceSyncDir/bin/stoic-attach",
-              "$STOIC_PROTOCOL_VERSION",
-              spec.pkg,
-              startOption,
-              debugOption,
-              spec.attachVia.str,
-            )
-          ),
+      adbShellProcessBuilder(
+          "$stoicDeviceSyncDir/bin/stoic-attach",
+          "$STOIC_PROTOCOL_VERSION",
+          spec.pkg,
+          startOption,
+          debugOption,
+          spec.attachVia.str,
         )
         .redirectInput(File("/dev/null"))
         .redirectOutput(Redirect.PIPE)
@@ -934,16 +929,6 @@ fun syncDevice() {
   }
 }
 
-fun shellEscapeCmd(cmdArgs: List<String>): String {
-  return if (cmdArgs.isEmpty()) {
-    ""
-  } else {
-    return ProcessBuilder(listOf("bash", "-c", """ printf " %q" "$@" """, "stoic") + cmdArgs)
-      .stdout()
-      .drop(0)
-  }
-}
-
 fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
   val pluginName = entrypoint.subcommand!!
   logDebug { "Attempting to resolve '$pluginName'" }
@@ -1017,5 +1002,48 @@ fun resolveUserOrDemo(entrypoint: Entrypoint): FileWithSha? {
 fun adbProcessBuilder(vararg args: String): ProcessBuilder {
   val procArgs = listOf("adb", "-s", adbSerial) + args
   logDebug { "adbProcBuilder($procArgs)" }
+  return ProcessBuilder(procArgs)
+}
+
+fun adbShellProcessBuilder(
+  vararg args: String,
+  forceRoot: Boolean = false,
+  evalArgs: Boolean = false
+): ProcessBuilder {
+  // If we're asked to run as root then we run the command through `su 0`
+  // (Note: I've only tested this with AOSP's su - I'm not sure if it works
+  // with Magisk's su)
+  val maybeRoot = if (forceRoot) {
+    listOf("su", "0")
+  } else {
+    listOf()
+  }
+
+  // If evalArgs is true then we use eval - otherwise we execute the args directly
+  val maybeEval = if (evalArgs) {
+    listOf("eval \"$*\"")
+  } else {
+    listOf("\"$@\"")
+  }
+
+  // The following construction may appear convoluted, but it has the property that it works for
+  // any combination of forceRoot and evalArgs.
+  // The idea is that we pass arguments to sh, which quotes them, and then they get passed to an
+  // inner sh on the device (either root or not) which then executes them (either evaluated or not)
+  val procArgs = listOf(
+    "sh",
+    "-c",
+    """adb -s $adbSerial shell $(printf " %q" "$@")""",
+    "--"
+  ) + maybeRoot + listOf("sh", "-c") + maybeEval + listOf("--") + args
+
+  logDebug {
+    // shell escape properly, so we can copy/paste in the shell
+    val pb = ProcessBuilder(listOf("bash", "-c", """printf ' %q' "$@"""", "--") + procArgs)
+      .redirectError(Redirect.INHERIT)
+    val out = pb.start().inputStream.bufferedReader().readText()
+    "adbShellProcessBuilder: $out"
+  }
+
   return ProcessBuilder(procArgs)
 }
