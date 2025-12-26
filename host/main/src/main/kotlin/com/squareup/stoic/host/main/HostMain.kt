@@ -1031,7 +1031,7 @@ fun adbShellProcessBuilder(
   // The idea is that we pass arguments to sh, which quotes them, and then they get passed to an
   // inner sh on the device (either root or not) which then executes them (either evaluated or not)
   val procArgs = listOf(
-    "sh",
+    "bash",
     "-c",
     """adb -s $adbSerial shell $(printf " %q" "$@")""",
     "--"
